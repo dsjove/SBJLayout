@@ -7,9 +7,8 @@ public protocol Pagination: AnyObject {
 	var landscape: Bool { get }
 
 	func registerGroup() -> Int
-	func measuredGroup(_ id: Int?, _ size: CGSize)
-
-	func rendering(_ id: Int?) -> CGPoint?
+	func measuredGroup(_ id: Int?, _ size: CGSize, spacingBefore: CGFloat)
+	func renderingGroup(_ id: Int?, from origin: CGPoint) -> CGPoint
 }
 
 public extension Pagination {
@@ -27,6 +26,7 @@ public class BasicPagination: Pagination {
 	public private(set) var pages: Set<Int> = []
 	public private(set) var goupY: CGFloat = 0
 	public private(set) var hasMeasured: Bool = false
+	private var renderPageOffsetY: CGFloat = 0
 
 	public init(
 		size: PageSize = PageSize.letter,
@@ -47,7 +47,7 @@ public class BasicPagination: Pagination {
 		return id
 	}
 
-	public func measuredGroup(_ id: Int?, _ size: CGSize) {
+	public func measuredGroup(_ id: Int?, _ size: CGSize, spacingBefore: CGFloat = 0) {
 		let height = size.height
 		guard height > 0, height.isFinite else {
 print("Group\(id ?? -1): Invalid Height -> \(pages.count)")
@@ -79,25 +79,28 @@ print("Group\(id ?? -1): Too Tall -> \(pages.count) \(goupY)")
 			return
 		}
 
-		if goupY + height > pageHeight {
+		let spacing = max(0, spacingBefore)
+		if goupY + spacing + height > pageHeight {
 			newPage()
 print("Group\(id ?? -1): Does Not Fit -> \(pages.count) - \(goupY)")
 			return
 		}
 
-		goupY += height
+		goupY += spacing + height
 print("Group\(id ?? -1): Fits -> \(pages.count) \(goupY)")
 	}
 
-	public func rendering(_ id: Int?) -> CGPoint? {
-		if let id {
+	public func renderingGroup(_ id: Int?, from origin: CGPoint) -> CGPoint {
+		guard let id else { return origin }
 print("Group\(id) Render")
-			if pages.contains(id) {
+		if pages.contains(id) {
 print("   Paging")
-				paging?(self)
-				return printableRect.origin
-			}
+			paging?(self)
+			renderPageOffsetY = origin.y - printableRect.origin.y
 		}
-		return nil
+		return CGPoint(
+			x: origin.x,
+			y: origin.y - renderPageOffsetY
+		)
 	}
 }
