@@ -44,7 +44,7 @@ public class BasicPagination: Pagination {
 		var state: State
 
 		public var description: String {
-			let prefix = "\(String(repeating: " ", count: id))\(id): "
+			let prefix = "\(id): "
 			let state = switch state {
 			case .register: "registered"
 			case .beginMeasure: "measuring"
@@ -99,7 +99,7 @@ public class BasicPagination: Pagination {
 		if let id {
 			journal.append(Journal(id: id, state: .render))
 			if pages.contains(id) {
-				//renderPageInsert(id)
+				renderPageInsert(id)
 			}
 		}
 	}
