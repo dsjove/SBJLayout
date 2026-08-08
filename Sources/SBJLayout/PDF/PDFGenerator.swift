@@ -27,13 +27,7 @@ public struct PDFGenerator {
 			layoutElementPage = page
 			let measured = content.measure(bounds: CGSize(fixedWidth: page.printableRect.width))
 			let allocated = CGRect(origin: page.printableRect.origin, size: measured)
-//TODO: Pagination - inspect journal for page inserts
 			content.draw(in: allocated)
-
-print("Pagination: Log...")
-page.journal.forEach {
-	print("Pagination: \($0)")
-}
 		}
 	}
 

@@ -7,12 +7,9 @@ public protocol Pagination: AnyObject {
 	var landscape: Bool { get }
 
 	func registerGroup() -> Int
-	func beginMeasureGroup(_ id: Int?)
-	func requestPageInsert(_ id: Int?)
-	func endMeasureGroup(_ id: Int?, _ size: CGSize)
+	func measuredGroup(_ id: Int?, _ size: CGSize)
 
 	func rendering(_ id: Int?) -> CGPoint?
-	func renderPageInsert(_ id: Int?)
 }
 
 public extension Pagination {
@@ -26,36 +23,10 @@ public class BasicPagination: Pagination {
 	public let landscape: Bool
 	public let paging: ((Pagination) -> ())?
 
-	private var groupId: Int = 0
-
-	public private(set) var journal: [Journal] = []
+	public private(set) var groupId: Int = 0
 	public private(set) var pages: Set<Int> = []
-
-	public struct Journal: CustomStringConvertible {
-		enum State {
-			case register
-			case beginMeasure
-			case pageRequested
-			case measured(CGSize)
-			case render
-			case pageBreak
-		}
-		var id: Int
-		var state: State
-
-		public var description: String {
-			let prefix = "\(id): "
-			let state = switch state {
-			case .register: "registered"
-			case .beginMeasure: "measuring"
-			case .pageRequested: "paged"
-			case .measured(let size): "measured \(size.unboundedDescription)"
-			case .render: "rendering"
-			case .pageBreak: "page-break"
-			}
-			return "\(prefix)\(state)"
-		}
-	}
+	public private(set) var goupY: CGFloat = 0
+	public private(set) var hasMeasured: Bool = false
 
 	public init(
 		size: PageSize = PageSize.letter,
@@ -67,47 +38,66 @@ public class BasicPagination: Pagination {
 		self.margin = margin
 		self.landscape = landscape
 		self.paging = paging
+		self.goupY = -1
 	}
 
 	public func registerGroup() -> Int {
 		let id = groupId
-		journal.append(Journal(id: id, state: .register))
 		groupId += 1
 		return id
 	}
 
-	public func beginMeasureGroup(_ id: Int?) {
-		if let id {
-			journal.append(Journal(id: id, state: .beginMeasure))
+	public func measuredGroup(_ id: Int?, _ size: CGSize) {
+		let height = size.height
+		guard height > 0, height.isFinite else {
+print("Group\(id ?? -1): Invalid Height -> \(pages.count)")
+			return
 		}
-	}
 
-	public func requestPageInsert(_ id: Int?) {
-		if let id {
-			journal.append(Journal(id: id, state: .pageRequested))
-			pages.insert(id)
-		}
-	}
+		let pageHeight = printableRect.height
 
-	public func endMeasureGroup(_ id: Int?, _ size: CGSize) {
-		if let id {
-			journal.append(Journal(id: id, state: .measured(size)))
+		let newPage = {
+			self.goupY = height
+			if let id {
+				self.pages.insert(id)
+			}
 		}
+
+		if !hasMeasured {
+			hasMeasured = true
+			newPage()
+print("Page Height: \(pageHeight)")
+print("Group\(id ?? -1): FirstMeasure -> \(pages.count) \(goupY)")
+			return
+		}
+
+		// A group cannot be split. Give an oversized group its own page;
+		// leaving goupY > pageHeight ensures the following group starts a new page.
+		if height > pageHeight {
+			newPage()
+print("Group\(id ?? -1): Too Tall -> \(pages.count) \(goupY)")
+			return
+		}
+
+		if goupY + height > pageHeight {
+			newPage()
+print("Group\(id ?? -1): Does Not Fit -> \(pages.count) - \(goupY)")
+			return
+		}
+
+		goupY += height
+print("Group\(id ?? -1): Fits -> \(pages.count) \(goupY)")
 	}
 
 	public func rendering(_ id: Int?) -> CGPoint? {
 		if let id {
-			journal.append(Journal(id: id, state: .render))
+print("Group\(id) Render")
 			if pages.contains(id) {
-				renderPageInsert(id)
+print("   Paging")
+				paging?(self)
 				return printableRect.origin
 			}
 		}
 		return nil
-	}
-
-	public func renderPageInsert(_ id: Int?) {
-		journal.append(Journal(id: id ?? -1, state: .pageBreak))
-		paging?(self)
 	}
 }
