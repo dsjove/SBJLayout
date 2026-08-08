@@ -28,19 +28,17 @@ public struct Panel<C: JCSLayoutElement>: JCSLayoutElement {
 	
 	public func measure(bounds: CGSize) -> CGSize {
 		if let content {
-			let inset = insets.apply(size: bounds)
-			let size = content.measure(bounds: inset)
-			let outset = insets.apply(size: size, inverse: true)
-			return outset
+			insets.apply(to: bounds) { content.measure(bounds: $0) }
+		} else {
+			.zero
 		}
-		return .zero
 	}
 
 	public func draw(in allocated: CGRect, measured: CGSize, align: Alignment) {
 		if let content {
 			background.draw(in: allocated)
-			let positioned = insets.apply(rect: allocated)
-			let contentMeasured = insets.apply(size: measured)
+			let positioned = insets.apply(to: allocated)
+			let contentMeasured = insets.apply(to: measured)
 			content.draw(in: positioned, measured: contentMeasured, align: align)
 		}
 	}

@@ -11,7 +11,7 @@ public protocol Pagination: AnyObject {
 	func requestPageInsert(_ id: Int?)
 	func endMeasureGroup(_ id: Int?, _ size: CGSize)
 
-	func rendering(_ id: Int?)
+	func rendering(_ id: Int?) -> CGPoint?
 	func renderPageInsert(_ id: Int?)
 }
 
@@ -95,13 +95,15 @@ public class BasicPagination: Pagination {
 		}
 	}
 
-	public func rendering(_ id: Int?) {
+	public func rendering(_ id: Int?) -> CGPoint? {
 		if let id {
 			journal.append(Journal(id: id, state: .render))
 			if pages.contains(id) {
 				renderPageInsert(id)
+				return printableRect.origin
 			}
 		}
+		return nil
 	}
 
 	public func renderPageInsert(_ id: Int?) {

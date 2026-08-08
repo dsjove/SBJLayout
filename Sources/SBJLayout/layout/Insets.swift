@@ -29,21 +29,25 @@ public struct Insets: Sendable, Codable, CustomStringConvertible {
 		"(left: \(left), right: \(right), top: \(top), bottom: \(bottom))"
 	}
 
-	public func apply(size: CGSize, inverse: Bool = false) -> CGSize {
+	public func apply(to: CGSize, content: (CGSize)->CGSize) -> CGSize {
+		apply(to: content(apply(to: to)), inverse: true)
+	}
+
+	public func apply(to: CGSize, inverse: Bool = false) -> CGSize {
 		let multiplier: CGFloat = inverse ? -1 : 1
 		return .init(
-			width: size.width.isUnbounded
-				? size.width
-				: size.width - ((left + right) * multiplier),
-			height: size.height.isUnbounded
-				? size.height
-				: size.height - ((top + bottom) * multiplier)
+			width: to.width.isUnbounded
+				? to.width
+				: to.width - ((left + right) * multiplier),
+			height: to.height.isUnbounded
+				? to.height
+				: to.height - ((top + bottom) * multiplier)
 		)
 	}
 
-	public func apply(rect: CGRect, inverse: Bool = false) -> CGRect {
+	public func apply(to: CGRect, inverse: Bool = false) -> CGRect {
 		let multiplier: CGFloat = inverse ? -1 : 1
-		return rect.inset(
+		return to.inset(
 			left: left * multiplier,
 			top: top * multiplier,
 			right: right * multiplier,
