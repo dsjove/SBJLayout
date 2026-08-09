@@ -16,6 +16,9 @@ import CoreGraphics
 // TODO: Feature - 'best fit' intrinsic size (allow 3, algorithm TBD)
 // TODO: Feature - lexical alignment across cells
 
+nonisolated(unsafe) internal var drawCells = false
+nonisolated(unsafe) internal var drawAllocated = false
+
 /*
 Custom Columns features not in scope...
 
@@ -129,7 +132,9 @@ public extension Grid {
 public extension GridDefinition<TrackedElement>.CellIteration {
 	func render() {
 		cell?.element.draw(in: rect, measured: content, align: alignment)
-//JCSRect(stroke: .red , lineWidth: 0.5).draw(in: rect)
+if drawCells {
+	JCSRect(stroke: .red , lineWidth: 0.5).draw(in: rect)
+}
 	}
 }
 
@@ -217,7 +222,9 @@ public struct Grid: JCSLayoutElement {
 	public func draw(in allocated: CGRect, measured: CGSize, align: Alignment) {
 		let definition = layout.measure(bounds: measured)
 		let positioned = align.apply(size: definition.size, in: allocated)
-//JCSRect(stroke: .blue.withAlphaComponent(0.5) , lineWidth: 1.5).draw(in: positioned)
+if drawAllocated {
+	JCSRect(stroke: .blue.withAlphaComponent(0.5) , lineWidth: 1.5).draw(in: positioned)
+}
 		definition.iterate(
 			allocated: positioned,
 			column: render.column,

@@ -1,3 +1,4 @@
+import Foundation
 import CoreGraphics
 import UIKit
 
@@ -5,6 +6,7 @@ public enum ImageSource: Sendable {
 	case none
 	case bundled(String, Bundle? = nil)
 	case system(String)
+	case file(URL)
 
 	public var isEmpty: Bool {
 		switch self {
@@ -14,6 +16,8 @@ public enum ImageSource: Sendable {
 			name.isEmpty
 		case .system(let name):
 			name.isEmpty
+		case .file(let url):
+			url.path.isEmpty
 		}
 	}
 
@@ -25,6 +29,8 @@ public enum ImageSource: Sendable {
 			UIImage(named: name, in: bundle, compatibleWith: nil)
 		case .system(let name):
 			UIImage(systemName: name)
+		case .file(let url):
+			UIImage(contentsOfFile: url.path)
 		}
 	}
 }
