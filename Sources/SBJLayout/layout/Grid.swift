@@ -8,12 +8,13 @@ import CoreGraphics
 // TODO: Feature - identifiable reducers and groupings for uniform Tracks
 // TODO: Feature - cross grid sizing sync
 // TODO: Feature - draw placeholder tracks to bounded edge
+// TODO: BUG - fill needs to be able to say "I am empty"
 
 // Custom Columns Features Remaining ...
 // TODO: Feature - Track Spans
 // TODO: Feature - dynamic gaps that fill (like SwiftUI spacer)
 // TODO: Feature - 'best fit' intrinsic size (allow 3, algorithm TBD)
-// TODO: Feature - lexical alignment accross cells
+// TODO: Feature - lexical alignment across cells
 
 /*
 Custom Columns features not in scope...
