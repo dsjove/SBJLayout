@@ -10,13 +10,17 @@ public protocol Pagination: AnyObject {
 	var contentRect: CGRect { get }
 
 	func registerGroup() -> Int
-	func measuredGroup(_ id: Int?, _ size: CGSize, spacingBefore: CGFloat)
+	func measuredGroup(_ id: Int?, _ size: CGSize, pageBreak: Bool, spacingBefore: CGFloat)
 	func renderingGroup(_ id: Int?, from origin: CGPoint) -> CGPoint
 }
 
 public extension Pagination {
 	var pageRect: CGRect { size.rect(landscape: landscape, margin: .zero) }
 	var printableRect: CGRect { size.rect(landscape: landscape, margin: margin) }
+
+	func measuredGroup(_ id: Int?, _ size: CGSize, spacingBefore: CGFloat = 0) {
+		measuredGroup(id, size, pageBreak: false, spacingBefore: spacingBefore)
+	}
 }
 
 public class BasicPagination: Pagination {
@@ -60,7 +64,9 @@ public class BasicPagination: Pagination {
 		return id
 	}
 
-	public func measuredGroup(_ id: Int?, _ size: CGSize, spacingBefore: CGFloat = 0) {
+	//TODO: detect page breaks with no content between
+
+	public func measuredGroup(_ id: Int?, _ size: CGSize, pageBreak: Bool, spacingBefore: CGFloat) {
 		let height = size.height
 //print("Group\(id ?? -1) Measured")
 		guard height > 0, height.isFinite else {
@@ -85,8 +91,13 @@ public class BasicPagination: Pagination {
 			return
 		}
 
-		// A group cannot be split. Give an oversized group its own page;
-		// leaving goupY > pageHeight ensures the following group starts a new page.
+		if pageBreak {
+			newPage()
+//print("Group\(id ?? -1): Forced Page Break -> \(pages.count) - \(measurePageOffsetY)")
+			return
+		}
+
+		//TODO: support splitting
 		if height > pageHeight {
 			newPage()
 //print("Group\(id ?? -1): Too Tall -> \(pages.count) \(measurePageOffsetY)")
