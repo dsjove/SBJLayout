@@ -3,8 +3,11 @@ import CoreGraphics
 
 public protocol Pagination: AnyObject {
 	var size: PageSize { get }
+//TODO: make margin Insets
 	var margin: CGSize { get }
 	var landscape: Bool { get }
+
+	var contentRect: CGRect { get }
 
 	func registerGroup() -> Int
 	func measuredGroup(_ id: Int?, _ size: CGSize, spacingBefore: CGFloat)
@@ -24,10 +27,13 @@ public class BasicPagination: Pagination {
 
 //TODO: we need a pass that can generate a 0 page document
 //TODO: we need a seperate class/struct for the two-pass vars
+	public private(set) var contentRect: CGRect = .zero
 	public var estimatedPageCountMax: Int? = nil
 	public var pageNumber: Int {pages.count}
+
 	private var groupId: Int = 0
 	private var hasMeasured: Bool = false
+	private var measured: Set<Int> = []
 	private var pages: Set<Int> = []
 	private var measurePageOffsetY: CGFloat = 0
 	private var renderPageOffsetY: CGFloat = 0
@@ -35,6 +41,7 @@ public class BasicPagination: Pagination {
 	public init(
 		size: PageSize = PageSize.letter,
 		margin: CGSize = CGSize(width: 18.0, height: 18.0),
+		insets: Insets = .init(),
 		landscape: Bool = false,
 		paging: ((Pagination) -> ())? = nil
 	) {
@@ -43,22 +50,25 @@ public class BasicPagination: Pagination {
 		self.landscape = landscape
 		self.paging = paging
 		self.measurePageOffsetY = -1
+		self.contentRect = insets.apply(to: printableRect)
 	}
 
 	public func registerGroup() -> Int {
 		let id = groupId
+//print("Group\(id) Register")
 		groupId += 1
 		return id
 	}
 
 	public func measuredGroup(_ id: Int?, _ size: CGSize, spacingBefore: CGFloat = 0) {
 		let height = size.height
+//print("Group\(id ?? -1) Measured")
 		guard height > 0, height.isFinite else {
 //print("Group\(id ?? -1): Invalid Height -> \(pages.count)")
 			return
 		}
 
-		let pageHeight = printableRect.height
+		let pageHeight = contentRect.height
 
 		let newPage = {
 			self.measurePageOffsetY = height
@@ -100,10 +110,10 @@ public class BasicPagination: Pagination {
 		if pages.contains(id) {
 //print("   Paging")
 			paging?(self)
-			renderPageOffsetY = origin.y - printableRect.origin.y
+			renderPageOffsetY = origin.y - contentRect.origin.y
 		}
 		return CGPoint(
-			x: origin.x,
+			x: contentRect.origin.x,
 			y: origin.y - renderPageOffsetY
 		)
 	}

@@ -3,7 +3,7 @@ import PDFKit
 
 public struct PDFGenerator {
 	public let pageSize: PageSize
-	public let margin: CGSize
+	public let margin: CGSize //TODO: Make Insets
 	public let landscape: Bool
 
 	public init(
@@ -16,23 +16,23 @@ public struct PDFGenerator {
 		self.landscape = landscape
 	}
 
-	public func render(_ content: JCSLayoutElement, _ paging: ((Pagination) -> ())? = nil) -> Data {
+	public func render(_ content: JCSLayoutElement, insets: Insets = .init(), _ paging: ((Pagination) -> ())? = nil) -> Data {
 		let pageRect = pageSize.rect(landscape: landscape, margin: .zero)
 		let renderer = UIGraphicsPDFRenderer(bounds: pageRect)
 		return renderer.pdfData { context in
-			let page = BasicPagination(size: pageSize, margin: margin, landscape: landscape) {
+			let page = BasicPagination(size: pageSize, margin: margin, insets: insets, landscape: landscape) {
 				context.beginPage()
 				paging?($0)
 			}
 			layoutElementPage = page
-			let measured = content.measure(bounds: CGSize(fixedWidth: page.printableRect.width))
+			let measured = content.measure(bounds: CGSize(fixedWidth: page.contentRect.width))
 			let allocated = CGRect(origin: page.printableRect.origin, size: measured)
 			content.draw(in: allocated)
 		}
 	}
 
-	public func form(_ content: JCSLayoutElement, _ paging: ((Pagination) -> ())? = nil) -> (Data, PDFDocument?) {
-		let pdfData: Data = render(content, paging)
+	public func form(_ content: JCSLayoutElement, insets: Insets = .init(), _ paging: ((Pagination) -> ())? = nil) -> (Data, PDFDocument?) {
+		let pdfData: Data = render(content, insets: insets, paging)
 		return (pdfData, PDFDocument(data: pdfData))
 	}
 }
