@@ -7,13 +7,15 @@ public struct JCSText: JCSLayoutElement {
 	public let align: Alignment?
 	public let lines: ClosedRange<Int>?
 	private let content: NSMutableAttributedString?
+	private let charMeasure: NSAttributedString?
 // TODO: Bug - do copy-on-write for content member and cache measurement
 
 	public init(
 		size font: UIFont?,
-		lines: Int
+		chars: Int? = nil,
+		lines: Int = 1
 	) {
-		self.init(nil as String?, font: font, lines: lines...lines)
+		self.init(nil as String?, font: font, minChars: chars, lines: lines...lines)
 	}
 
 	public init(
@@ -21,9 +23,10 @@ public struct JCSText: JCSLayoutElement {
 		font: UIFont?,
 		color: UIColor?,
 		align: Alignment? = nil,
+		minChars: Int? = nil,
 		lines: ClosedRange<Int>? = nil
 	) {
-		self.init(text?.description, font: font, color: color, align: align, lines: lines)
+		self.init(text?.description, font: font, color: color, align: align, minChars: minChars, lines: lines)
 	}
 
 	public init(
@@ -31,6 +34,7 @@ public struct JCSText: JCSLayoutElement {
 		font: UIFont? = nil,
 		color: UIColor? = nil,
 		align: Alignment? = nil,
+		minChars: Int? = nil,
 		lines: ClosedRange<Int>? = nil
 	) {
 		let font = font ?? UIFont.systemFont(ofSize: 9.0)
@@ -45,23 +49,42 @@ public struct JCSText: JCSLayoutElement {
 				.font: font,
 				.foregroundColor: color,
 			])
-		}
-		else {
+		} else {
 			content = nil
+		}
+		if let minChars {
+			let text = String(repeating: "W", count: minChars)
+			charMeasure = NSAttributedString(string: text, attributes: [
+				.font: font,
+			])
+		} else {
+			charMeasure = nil
 		}
 	}
 	
 	public func measure(bounds: CGSize = .unbounded) -> CGSize {
 		guard let content else {
-			if let lines {
-				return .init(
-					width: 0.0,
-					height: ceil(CGFloat(lines.lowerBound) * font.lineHeight))
+			if let charMeasure {
+				return measure(bounds: bounds, str: charMeasure, lines: lines)
+			} else if let lines {
+				return .init(width: 0.0, height: ceil(CGFloat(lines.lowerBound) * font.lineHeight))
 			} else {
 				return .zero
 			}
 		}
-		var measured = content.boundingRect(
+		var measured = measure(bounds: bounds, str: content, lines: lines)
+		if let charMeasure {
+			let minChars = measure(bounds: bounds, str: charMeasure, lines: lines)
+			measured = .init(
+				width: max(measured.width, minChars.width),
+				height: max(measured.height, minChars.height)
+			)
+		}
+		return measured
+	}
+
+	private func measure(bounds: CGSize, str: NSAttributedString, lines: ClosedRange<Int>?) -> CGSize {
+		var measured = str.boundingRect(
 			with: bounds,
 			options: [.usesLineFragmentOrigin, .usesFontLeading],
 			context: nil
