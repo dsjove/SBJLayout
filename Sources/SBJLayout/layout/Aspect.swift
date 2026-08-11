@@ -1,6 +1,5 @@
 import CoreGraphics
 
-//TODO: support ratio
 public enum Aspect: Int, Sendable, Codable, CustomStringConvertible {
 	case fit = 0
 	case fill = 1

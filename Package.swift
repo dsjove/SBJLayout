@@ -23,6 +23,7 @@ let package = Package(
             name: "SBJLayout",
             swiftSettings: [
                 .enableUpcomingFeature("ApproachableConcurrency"),
+                .defaultIsolation(nil),
             ],
         ),
         .testTarget(
@@ -30,6 +31,7 @@ let package = Package(
             dependencies: ["SBJLayout"],
             swiftSettings: [
                 .enableUpcomingFeature("ApproachableConcurrency"),
+                .defaultIsolation(nil),
             ],
         ),
     ]
