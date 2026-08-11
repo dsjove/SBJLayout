@@ -105,39 +105,39 @@ public struct JCSLayoutElementBuilder {
 
 @resultBuilder
 public struct JCSLayoutElementOptionalBuilder<Element: JCSLayoutElement> {
-    public typealias Component = Element?
+	public typealias Component = Element?
 
-    public static func buildExpression(
-        _ expression: Element
-    ) -> Component {
-        expression
-    }
+	public static func buildExpression(
+		_ expression: Element
+	) -> Component {
+		expression
+	}
 
-    public static func buildOptional(
-        _ component: Component?
-    ) -> Component {
-        component ?? nil
-    }
+	public static func buildOptional(
+		_ component: Component?
+	) -> Component {
+		component ?? nil
+	}
 
-    public static func buildEither(
-        first component: Component
-    ) -> Component {
-        component
-    }
+	public static func buildEither(
+		first component: Component
+	) -> Component {
+		component
+	}
 
-    public static func buildEither(
-        second component: Component
-    ) -> Component {
-        component
-    }
+	public static func buildEither(
+		second component: Component
+	) -> Component {
+		component
+	}
 
-    public static func buildBlock(
-        _ component: Component
-    ) -> Component {
-        component
-    }
+	public static func buildBlock(
+		_ component: Component
+	) -> Component {
+		component
+	}
 
-    public static func buildBlock() -> Component {
-        nil
-    }
+	public static func buildBlock() -> Component {
+		nil
+	}
 }

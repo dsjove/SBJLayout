@@ -52,7 +52,6 @@ public enum PageSize: Int, Sendable, Codable, CustomStringConvertible {
 		CGRect(origin: .zero, size: size)
 	}
 
-	//TODO: make margin an Insets
 	public func rect(landscape: Bool, margin: Insets) -> CGRect {
 		let x = margin.left
 		let y = margin.top

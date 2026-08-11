@@ -113,17 +113,11 @@ public struct RenderableBuilder {
 }
 
 @resultBuilder
-public struct RenderableOptionalBuilder {
-	public typealias Component = (any Renderable)?
-
-	public static func buildExpression<T: Renderable>(
-		_ expression: T
-	) -> Component {
-		expression
-	}
+public struct RenderableOptionalBuilder<Element: Renderable> {
+	public typealias Component = Element?
 
 	public static func buildExpression(
-		_ expression: Component
+		_ expression: Element
 	) -> Component {
 		expression
 	}

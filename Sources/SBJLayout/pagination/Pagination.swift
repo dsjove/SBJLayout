@@ -3,7 +3,6 @@ import CoreGraphics
 
 public protocol Pagination: AnyObject {
 	var size: PageSize { get }
-//TODO: make margin Insets
 	var margin: Insets { get }
 	var landscape: Bool { get }
 
@@ -29,7 +28,6 @@ public class BasicPagination: Pagination {
 	public let landscape: Bool
 	public let paging: ((Pagination) -> ())?
 
-//TODO: we need a pass that can generate a 0 page document
 //TODO: we need a seperate class/struct for the two-pass vars
 	public private(set) var contentRect: CGRect = .zero
 	public var estimatedPageCountMax: Int? = nil
