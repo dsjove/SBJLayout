@@ -3,12 +3,12 @@ import PDFKit
 
 public struct PDFGenerator {
 	public let pageSize: PageSize
-	public let margin: CGSize //TODO: Make Insets
+	public let margin: Insets
 	public let landscape: Bool
 
 	public init(
 		pageSize: PageSize = PageSize.letter,
-		margin: CGSize = CGSize(width: 18.0, height: 18.0),
+		margin: Insets = .init(dx: 18.0, dy: 18.0),
 		landscape: Bool = false
 	) {
 		self.pageSize = pageSize

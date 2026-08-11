@@ -4,7 +4,7 @@ import CoreGraphics
 public protocol Pagination: AnyObject {
 	var size: PageSize { get }
 //TODO: make margin Insets
-	var margin: CGSize { get }
+	var margin: Insets { get }
 	var landscape: Bool { get }
 
 	var contentRect: CGRect { get }
@@ -25,7 +25,7 @@ public extension Pagination {
 
 public class BasicPagination: Pagination {
 	public let size: PageSize
-	public let margin: CGSize
+	public let margin: Insets
 	public let landscape: Bool
 	public let paging: ((Pagination) -> ())?
 
@@ -44,7 +44,7 @@ public class BasicPagination: Pagination {
 
 	public init(
 		size: PageSize = PageSize.letter,
-		margin: CGSize = CGSize(width: 18.0, height: 18.0),
+		margin: Insets = .init(dx: 18.0, dy: 18.0),
 		insets: Insets = .init(),
 		landscape: Bool = false,
 		paging: ((Pagination) -> ())? = nil
