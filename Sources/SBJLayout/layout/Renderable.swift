@@ -52,13 +52,14 @@ public struct EmptyRenderable: Renderable {
 }
 
 public typealias Renderables = [any Renderable]
+public typealias RenderableBuilder = TypedFlattenedBuilder<any Renderable>
 
 @resultBuilder
-public struct RenderableBuilder {
-	public typealias Component = Renderables
+public struct TypedFlattenedBuilder<Element> {
+	public typealias Component = [Element]
 
-	public static func buildExpression<T: Renderable>(
-		_ expression: T
+	public static func buildExpression(
+		_ expression: Element
 	) -> Component {
 		[expression]
 	}
@@ -69,16 +70,16 @@ public struct RenderableBuilder {
 		expression
 	}
 
-	public static func buildExpression<T: Renderable>(
-		_ expression: [T]
-	) -> Component {
-		expression.map { $0 as any Renderable }
+	public static func buildExpression<T: Sequence>(
+		_ expression: T
+	) -> Component where T.Element == Element {
+		Array(expression)
 	}
 
-	public static func buildExpression<T: Renderable>(
-		_ expression: [[T]]
-	) -> Component {
-		expression.flatMap { $0 }.map { $0 as any Renderable }
+	public static func buildExpression<T: Sequence>(
+		_ expression: T
+	) -> Component where T.Element: Sequence, T.Element.Element == Element {
+		expression.flatMap { $0 }
 	}
 
 	public static func buildBlock(
@@ -112,8 +113,10 @@ public struct RenderableBuilder {
 	}
 }
 
+public typealias RenderableOptionalBuilder<C> = TypedOptionalBuilder<C> where C: Renderable
+
 @resultBuilder
-public struct RenderableOptionalBuilder<Element: Renderable> {
+public struct TypedOptionalBuilder<Element> {
 	public typealias Component = Element?
 
 	public static func buildExpression(

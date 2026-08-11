@@ -24,7 +24,7 @@ struct GridRenderingTests {
 			return size
 		}
 
-		func draw(
+		func render(
 			in allocated: CGRect,
 			measured: CGSize,
 			align: Alignment
@@ -47,7 +47,7 @@ struct GridRenderingTests {
 			cells: [cell]
 		)
 
-		grid.draw(
+		grid.render(
 			in: CGRect(x: 10, y: 20, width: 40, height: 20),
 			measured: CGSize(width: 40, height: 20),
 			align: .leftTop
@@ -69,7 +69,7 @@ struct GridRenderingTests {
 			cells: [cell]
 		)
 
-		grid.draw(
+		grid.render(
 			in: CGRect(x: 10, y: 20, width: 100, height: 80),
 			measured: CGSize(width: 50, height: 20),
 			align: [.centerX, .centerY]
@@ -105,7 +105,7 @@ struct GridRenderingTests {
 			cells: cells
 		)
 
-		grid.draw(
+		grid.render(
 			in: CGRect(x: 100, y: 200, width: 55, height: 10),
 			measured: CGSize(width: 55, height: 10),
 			align: .leftTop
@@ -137,7 +137,7 @@ struct GridRenderingTests {
 			cells: [cell]
 		)
 
-		grid.draw(
+		grid.render(
 			in: CGRect(x: 0, y: 0, width: 20, height: 10),
 			measured: CGSize(width: 20, height: 10),
 			align: .leftTop
@@ -162,7 +162,7 @@ struct GridRenderingTests {
 			cells: [cell]
 		)
 
-		grid.draw(
+		grid.render(
 			in: CGRect(x: 5, y: 7, width: 20, height: 10),
 			measured: CGSize(width: 20, height: 10),
 			align: .leftTop
@@ -190,7 +190,7 @@ struct GridRenderingTests {
 			cells: []
 		)
 
-		grid.draw(
+		grid.render(
 			in: CGRect(x: 10, y: 20, width: 100, height: 100),
 			measured: .zero,
 			align: .leftTop
