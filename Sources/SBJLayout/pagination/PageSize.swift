@@ -1,6 +1,7 @@
 import Foundation
 
 //TODO: Support custom size
+//TODO: Add Category
 public enum PageSize: Int, Sendable, Codable, CustomStringConvertible {
 	// North American
 	case letter = -1
@@ -51,6 +52,7 @@ public enum PageSize: Int, Sendable, Codable, CustomStringConvertible {
 		CGRect(origin: .zero, size: size)
 	}
 
+	//TODO: make margin an Insets
 	public func rect(landscape: Bool, margin: CGSize) -> CGRect {
 		let x = margin.width
 		let y = margin.height
