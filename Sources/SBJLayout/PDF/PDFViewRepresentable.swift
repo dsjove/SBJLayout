@@ -3,9 +3,9 @@ import PDFKit
 
 public struct PDFViewRepresentable: UIViewRepresentable {
 	public let document: PDFDocument
-	public let onChange: (PDFView) -> Void
+	public let onChange: @Sendable (PDFView) -> Void
 
-	public init(document: PDFDocument, onChange: @escaping (PDFView) -> Void) {
+	public init(document: PDFDocument, onChange: @escaping @Sendable (PDFView) -> Void) {
 		self.document = document
 		self.onChange = onChange
 	}
@@ -13,7 +13,7 @@ public struct PDFViewRepresentable: UIViewRepresentable {
 	public final class Coordinator {
 		private var observers: [NSObjectProtocol] = []
 
-		func observe(_ view: PDFView, onChange: @escaping (PDFView) -> Void) {
+		func observe(_ view: PDFView, onChange: @Sendable @escaping (PDFView) -> Void) {
 			observers.forEach(NotificationCenter.default.removeObserver)
 			observers = [
 				NotificationCenter.default.addObserver(forName: .PDFViewPageChanged, object: view, queue: .main) { _ in onChange(view) },

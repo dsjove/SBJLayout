@@ -1,6 +1,6 @@
 import CoreGraphics
 
-//TODO: Feature - add size class to measure/draw and replace JCSLayoutElement
+//TODO: Feature - add size class to measure/draw for retries
 public protocol Renderable: TrackElement {
 	// allocated and contentSize with unbounded values is undefined
 	func render(in allocated: CGRect, measured: CGSize, align: Alignment)
@@ -35,7 +35,7 @@ public extension Renderable {
 	}
 }
 
-public struct EmptyRenderables: Renderable {
+public struct EmptyRenderable: Renderable {
 	public let size: CGSize
 
 	public init(size: CGSize = .zero) {

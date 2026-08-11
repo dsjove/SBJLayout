@@ -12,9 +12,9 @@ public extension TrackElement {
 }
 
 public struct TrackedElement: TrackElement {
-	public let element: any JCSLayoutElement
+	public let element: any Renderable
 
-	public init(_ element: any JCSLayoutElement) {
+	public init(_ element: any Renderable) {
 		self.element = element
 	}
 

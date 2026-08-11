@@ -4,7 +4,7 @@ import Testing
 
 @Suite("Grid rendering")
 struct GridRenderingTests {
-	private final class DrawingElement: JCSLayoutElement {
+	private final class DrawingElement: Renderable {
 		struct DrawCall {
 			let allocated: CGRect
 			let measured: CGSize

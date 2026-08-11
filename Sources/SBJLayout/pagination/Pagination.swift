@@ -93,8 +93,8 @@ public class BasicPagination: Pagination {
 			return
 		}
 
-		//TODO: Feature support splitting
-		//TODO: Feature variable content size for best fit
+		//TODO: Feature - support splitting
+		//TODO: Feature - variable content size for best fit
 		if height > pageHeight {
 			newPage()
 //print("Group\(id ?? -1): Too Tall -> \(pages.count) \(measurePageOffsetY)")

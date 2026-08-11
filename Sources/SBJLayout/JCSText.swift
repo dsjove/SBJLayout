@@ -1,7 +1,7 @@
 import CoreGraphics
 import UIKit
 
-public struct JCSText: JCSLayoutElement {
+public struct JCSText: Renderable {
 	public let text: String?
 	public let font: UIFont
 	public let align: Alignment?
@@ -106,7 +106,7 @@ public struct JCSText: JCSLayoutElement {
 		return measured
 	}
 
-	public func draw(in allocated: CGRect, measured: CGSize, align: Alignment) {
+	public func render(in allocated: CGRect, measured: CGSize, align: Alignment) {
 		guard let content else { return }
 		var r = allocated
 		//NSAttributedString has alignment built into the attributes

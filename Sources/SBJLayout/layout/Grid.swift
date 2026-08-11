@@ -44,7 +44,7 @@ public extension Grid {
 	init(
 		horzFlow col: Column, wrapped at: Int? = nil,
 		rows: Rows = .init(align: .left),
-		@JCSLayoutElementBuilder cells: ()->Cells,
+		@RenderableBuilder cells: ()->Cells,
 		colRender: ((ColumnIteration)->())? = nil,
 		rowRender: ((RowIteration)->())? = nil,
 		cellRender: ((CellIteration)->())? = nil
@@ -60,7 +60,7 @@ public extension Grid {
 	init(
 		vertFlow col: Column,
 		rows: Rows = .init(align: .centerY),
-		@JCSLayoutElementBuilder cells: ()->Cells,
+		@RenderableBuilder cells: ()->Cells,
 		colRender: ((ColumnIteration)->())? = nil,
 		rowRender: ((RowIteration)->())? = nil,
 		cellRender: ((CellIteration)->())? = nil
@@ -78,7 +78,7 @@ public extension Grid {
 		header: Track? = nil,
 		leader: Track? = nil,
 		rows: TrackFactory = .init(),
-		@JCSLayoutElementBuilder cells: ()->Cells,
+		@RenderableBuilder cells: ()->Cells,
 		colRender: ((ColumnIteration)->())? = nil,
 		rowRender: ((RowIteration)->())? = nil,
 		cellRender: ((CellIteration)->())? = nil
@@ -132,14 +132,14 @@ public extension Grid {
 
 public extension GridDefinition<TrackedElement>.CellIteration {
 	func render() {
-		cell?.element.draw(in: rect, measured: content, align: alignment)
+		cell?.element.render(in: rect, measured: content, align: alignment)
 if drawCells {
 	JCSRect(stroke: .red , lineWidth: 0.5).draw(in: rect)
 }
 	}
 }
 
-public struct Grid: JCSLayoutElement {
+public struct Grid: Renderable {
 //MARK: Types
 	public typealias Layout = GridLayout<TrackedElement>
 	public typealias Definition = GridDefinition<TrackedElement>
@@ -147,8 +147,8 @@ public struct Grid: JCSLayoutElement {
 	public typealias Columns = TrackFactory
 	public typealias Row = Track
 	public typealias Rows = TrackFactory
-	public typealias Cell = JCSLayoutElement
-	public typealias Cells = [JCSLayoutElement]
+	public typealias Cell = Renderable
+	public typealias Cells = [Renderable]
 
 	public typealias ColumnIteration = Definition.ColumnIteration
 	public typealias RowIteration = Definition.RowIteration
@@ -178,7 +178,7 @@ public struct Grid: JCSLayoutElement {
 		rows: Rows = .init(),
 		render: Render = .init(),
 		arrangement: TrackArrangement = .gaps,
-		@JCSLayoutElementBuilder cells: ()->Cells
+		@RenderableBuilder cells: ()->Cells
 	) {
 		self.init(
 			cols: cols,
@@ -220,7 +220,7 @@ public struct Grid: JCSLayoutElement {
 		return definition.size
 	}
 
-	public func draw(in allocated: CGRect, measured: CGSize, align: Alignment) {
+	public func render(in allocated: CGRect, measured: CGSize, align: Alignment) {
 		let definition = layout.measure(bounds: measured)
 		let positioned = align.apply(size: definition.size, in: allocated)
 if drawAllocated {
