@@ -47,6 +47,10 @@ public extension CGRect {
 		self.init(x: x, y: y, width: size.width, height: size.height)
 	}
 
+	func reorigin(at point: CGPoint) -> CGRect {
+		.init(origin: point, size: size)
+	}
+
 	func inset(left: CGFloat, top: CGFloat, right: CGFloat, bottom: CGFloat) -> CGRect {
 		.init(
 			x: minX.isUnbounded ? minX : minX + left,

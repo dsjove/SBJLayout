@@ -16,6 +16,7 @@ import CoreGraphics
 // TODO: Feature - 'best fit' intrinsic size (allow 3, algorithm TBD)
 // TODO: Feature - lexical alignment across cells
 
+//Some cells will draw this debug rect not reorigined with page
 nonisolated(unsafe) internal var drawCells = false
 nonisolated(unsafe) internal var drawAllocated = false
 

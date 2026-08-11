@@ -2,8 +2,8 @@ import CoreGraphics
 
 public struct Panel<C: JCSLayoutElement>: JCSLayoutElement {
 	let insets: Insets
-	//TODO: Aspect Ratio
-	//TODO: min/max sizes
+	//TODO: Feature - Aspect Ratio
+	//TODO: Feature - min/max sizes
 	let background: JCSRect?
 	let content: C?
 

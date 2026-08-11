@@ -28,7 +28,7 @@ public class BasicPagination: Pagination {
 	public let landscape: Bool
 	public let paging: ((Pagination) -> ())?
 
-//TODO: we need a seperate class/struct for the two-pass vars
+//TODO: Bug - we need a seperate class/struct for the two-pass vars
 	public private(set) var contentRect: CGRect = .zero
 	public var estimatedPageCountMax: Int? = nil
 	public var pageNumber: Int {pages.count}
@@ -62,8 +62,6 @@ public class BasicPagination: Pagination {
 		return id
 	}
 
-	//TODO: detect page breaks with no content between
-
 	public func measuredGroup(_ id: Int?, _ size: CGSize, pageBreak: Bool, spacingBefore: CGFloat) {
 		let height = size.height
 //print("Group\(id ?? -1) Measured")
@@ -95,7 +93,8 @@ public class BasicPagination: Pagination {
 			return
 		}
 
-		//TODO: support splitting
+		//TODO: Feature support splitting
+		//TODO: Feature variable content size for best fit
 		if height > pageHeight {
 			newPage()
 //print("Group\(id ?? -1): Too Tall -> \(pages.count) \(measurePageOffsetY)")

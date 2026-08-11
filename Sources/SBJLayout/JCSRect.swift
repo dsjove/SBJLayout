@@ -1,7 +1,7 @@
 import CoreGraphics
 import UIKit
 
-//TODO: Design - this is more of a drawing trait than an entity
+//TODO: API - this is more of a drawing trait than an entity and not a rectangle
 public struct JCSRect {
 	public let fill: UIColor
 	public let stroke: UIColor

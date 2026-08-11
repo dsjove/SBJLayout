@@ -1,6 +1,6 @@
 import CoreGraphics
 
-//TODO: add size class to measure/draw and replace JCSLayoutElement
+//TODO: Feature - add size class to measure/draw and replace JCSLayoutElement
 public protocol Renderable: TrackElement {
 	// allocated and contentSize with unbounded values is undefined
 	func render(in allocated: CGRect, measured: CGSize, align: Alignment)
@@ -8,7 +8,7 @@ public protocol Renderable: TrackElement {
 	var pagination: Pagination { get }
 }
 
-//TODO: should this be an !optional only active during rendering?
+//TODO: Bug -should this be an !optional only active during rendering and thread safe?
 nonisolated(unsafe) internal var layoutElementPage: Pagination = BasicPagination()
 
 public extension Renderable {
