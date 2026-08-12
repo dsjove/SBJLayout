@@ -6,7 +6,7 @@ public struct Insets: Sendable, Codable, CustomStringConvertible {
 	public let top: CGFloat
 	public let bottom: CGFloat
 
-	static let zero: Self = .init()
+	public static let zero: Self = .init()
 
 	public init(
 		left: CGFloat = 0,
