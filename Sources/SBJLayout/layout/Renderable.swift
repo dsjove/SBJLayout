@@ -2,14 +2,13 @@ import CoreGraphics
 
 //TODO: Feature - add size class to measure/draw for retries
 public protocol Renderable: TrackElement {
-	// allocated and contentSize with unbounded values is undefined
+	// init should do any data transformations
+
+	// TrackElement measures
+
+	// Draw, allocated and contentSize with unbounded values is undefined
 	func render(in allocated: CGRect, measured: CGSize, align: Alignment)
-
-	var pagination: Pagination { get }
 }
-
-//TODO: Bug -should this be an !optional only active during rendering and thread safe?
-nonisolated(unsafe) internal var layoutElementPage: Pagination = BasicPagination()
 
 public extension Renderable {
 	func measure() -> CGSize {
@@ -30,8 +29,16 @@ public extension Renderable {
 		return allocated
 	}
 
-	var pagination: Pagination {
-		layoutElementPage
+	static var context: RenderableContext {
+		RenderableEnvironment.context
+	}
+
+	static var pagination: Pagination {
+		Self.context.pagination
+	}
+
+	static var jargon: Jargon {
+		context.jargon
 	}
 }
 

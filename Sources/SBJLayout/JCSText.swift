@@ -15,7 +15,7 @@ public struct JCSText: Renderable {
 		chars: Int? = nil,
 		lines: Int = 1
 	) {
-		self.init(nil as String?, font: font, minChars: chars, lines: lines...lines)
+		self.init(verbatim: nil, font: font, minChars: chars, lines: lines...lines)
 	}
 
 	public init(
@@ -26,11 +26,51 @@ public struct JCSText: Renderable {
 		minChars: Int? = nil,
 		lines: ClosedRange<Int>? = nil
 	) {
-		self.init(text?.description, font: font, color: color, align: align, minChars: minChars, lines: lines)
+		self.init(verbatim: text?.description, font: font, color: color, align: align, minChars: minChars, lines: lines)
 	}
 
 	public init(
-		_ text: String?,
+		_ jargon: String?,
+		font: UIFont? = nil,
+		color: UIColor? = nil,
+		align: Alignment? = nil,
+		minChars: Int? = nil,
+		lines: ClosedRange<Int>? = nil
+	) {
+		self.init(
+			verbatim: Self.jargon.text(jargon),
+			font: font,
+			color: color,
+			align: align,
+			minChars: minChars,
+			lines: lines
+		)
+	}
+
+	public init<Value: Sendable>(
+		_ jargon: String?,
+		value: Value,
+		font: UIFont? = nil,
+		color: UIColor? = nil,
+		align: Alignment? = nil,
+		minChars: Int? = nil,
+		lines: ClosedRange<Int>? = nil
+	) {
+		let text = jargon.map { key in
+			Self.jargon.format(key, value: value) ?? String(describing: value)
+		}
+		self.init(
+			verbatim: text,
+			font: font,
+			color: color,
+			align: align,
+			minChars: minChars,
+			lines: lines
+		)
+	}
+
+	public init(
+		verbatim text: String?,
 		font: UIFont? = nil,
 		color: UIColor? = nil,
 		align: Alignment? = nil,

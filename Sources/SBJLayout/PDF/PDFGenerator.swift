@@ -24,10 +24,11 @@ public struct PDFGenerator {
 				context.beginPage()
 				paging?($0)
 			}
-			layoutElementPage = page
-			let measured = content.measure(bounds: CGSize(fixedWidth: page.contentRect.width))
-			let allocated = CGRect(origin: page.printableRect.origin, size: measured)
-			content.render(in: allocated)
+			RenderableEnvironment.withPagination(page) {
+				let measured = content.measure(bounds: CGSize(fixedWidth: page.contentRect.width))
+				let allocated = CGRect(origin: page.printableRect.origin, size: measured)
+				content.render(in: allocated)
+			}
 		}
 	}
 
