@@ -8,7 +8,7 @@ public struct Panel<C: Renderable>: Renderable {
 	let content: C?
 
 	public init(
-		insets: Insets = .init(),
+		insets: Insets = .zero,
 		background: JCSRect? = nil,
 		@RenderableOptionalBuilder<C>
 		content: ()->C?
@@ -17,7 +17,7 @@ public struct Panel<C: Renderable>: Renderable {
 	}
 
 	public init(
-		insets: Insets = .init(),
+		insets: Insets = .zero,
 		background: JCSRect? = nil,
 		content: C?
 	) {

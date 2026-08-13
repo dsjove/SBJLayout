@@ -3,16 +3,16 @@ public struct RenderableContext: @unchecked Sendable {
 	public var jargon: Jargon
 
 	public init(
-		pagination: Pagination = BasicPagination(),
-		jargon: Jargon = .standard
+		jargon: Jargon = .standard,
+		pagination: Pagination = Pagination()
 	) {
 		self.pagination = pagination
 		self.jargon = jargon
 	}
 
 	public func with(
-		pagination: Pagination? = nil,
-		jargon: Jargon? = nil
+		jargon: Jargon? = nil,
+		pagination: Pagination? = nil
 	) -> Self {
 		var context = self
 		if let pagination {
@@ -37,18 +37,11 @@ public enum RenderableEnvironment {
 	}
 
 	@discardableResult
-	public static func withPagination<Result>(
-		_ pagination: Pagination,
+	public static func withContext<Result>(
+		jargon: Jargon = .standard,
+		pagination: Pagination = Pagination(),
 		operation: () throws -> Result
 	) rethrows -> Result {
-		try withContext(context.with(pagination: pagination), operation: operation)
-	}
-
-	@discardableResult
-	public static func withJargon<Result>(
-		_ jargon: Jargon,
-		operation: () throws -> Result
-	) rethrows -> Result {
-		try withContext(context.with(jargon: jargon), operation: operation)
+		try withContext(context.with(jargon: jargon, pagination: pagination), operation: operation)
 	}
 }

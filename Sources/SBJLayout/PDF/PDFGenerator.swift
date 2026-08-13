@@ -16,24 +16,24 @@ public struct PDFGenerator {
 		self.landscape = landscape
 	}
 
-	public func render(_ content: Renderable, insets: Insets = .init(), _ paging: ((Pagination) -> ())? = nil) -> Data {
+	public func render(_ content: Renderable, jargon: Jargon = .standard, insets: Insets = .zero, _ paging: ((Pagination) -> ())? = nil) -> Data {
 		let pageRect = pageSize.rect(landscape: landscape, margin: .zero)
 		let renderer = UIGraphicsPDFRenderer(bounds: pageRect)
 		return renderer.pdfData { context in
-			let page = BasicPagination(size: pageSize, margin: margin, insets: insets, landscape: landscape) {
+			let pagination = Pagination(size: pageSize, margin: margin, insets: insets, landscape: landscape) {
 				context.beginPage()
 				paging?($0)
 			}
-			RenderableEnvironment.withPagination(page) {
-				let measured = content.measure(bounds: CGSize(fixedWidth: page.contentRect.width))
-				let allocated = CGRect(origin: page.printableRect.origin, size: measured)
+			RenderableEnvironment.withContext(jargon: jargon, pagination: pagination) {
+				let measured = content.measure(bounds: CGSize(fixedWidth: pagination.contentRect.width))
+				let allocated = CGRect(origin: pagination.printableRect.origin, size: measured)
 				content.render(in: allocated)
 			}
 		}
 	}
 
-	public func form(_ content: Renderable, insets: Insets = .init(), _ paging: ((Pagination) -> ())? = nil) -> (Data, PDFDocument?) {
-		let pdfData: Data = render(content, insets: insets, paging)
+	public func form(_ content: Renderable, jargon: Jargon = .standard, insets: Insets = .zero, _ paging: ((Pagination) -> ())? = nil) -> (Data, PDFDocument?) {
+		let pdfData: Data = render(content, jargon: jargon, insets: insets, paging)
 		return (pdfData, PDFDocument(data: pdfData))
 	}
 }

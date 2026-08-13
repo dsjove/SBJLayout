@@ -1,37 +1,18 @@
 import Foundation
 import CoreGraphics
 
-public protocol Pagination: AnyObject {
-	var size: PageSize { get }
-	var margin: Insets { get }
-	var landscape: Bool { get }
-
-	var contentRect: CGRect { get }
-
-	func registerGroup() -> Int
-	func measuredGroup(_ id: Int?, _ size: CGSize, pageBreak: Bool, spacingBefore: CGFloat)
-	func renderingGroup(_ id: Int?, from origin: CGPoint) -> CGPoint
-}
-
-public extension Pagination {
-	var pageRect: CGRect { size.rect(landscape: landscape, margin: .zero) }
-	var printableRect: CGRect { size.rect(landscape: landscape, margin: margin) }
-
-	func measuredGroup(_ id: Int?, _ size: CGSize, spacingBefore: CGFloat = 0) {
-		measuredGroup(id, size, pageBreak: false, spacingBefore: spacingBefore)
-	}
-}
-
-public class BasicPagination: Pagination {
+public class Pagination {
 	public let size: PageSize
 	public let margin: Insets
 	public let landscape: Bool
+	public let estimatedPageCountMax: Int?
 	public let paging: ((Pagination) -> ())?
 
-//TODO: Bug - we need a seperate class/struct for the two-pass vars
-	public private(set) var contentRect: CGRect = .zero
-	public var estimatedPageCountMax: Int? = nil
-	public var pageNumber: Int {pages.count}
+	public var pageRect: CGRect { size.rect(landscape: landscape, margin: .zero) }
+	public var printableRect: CGRect { size.rect(landscape: landscape, margin: margin) }
+	public let contentRect: CGRect
+
+	public var pageNumber: Int { pages.count }
 
 	private var groupId: Int = 0
 	private var hasMeasured: Bool = false
@@ -43,15 +24,18 @@ public class BasicPagination: Pagination {
 	public init(
 		size: PageSize = PageSize.letter,
 		margin: Insets = .init(dx: 18.0, dy: 18.0),
-		insets: Insets = .init(),
+		insets: Insets = .zero,
 		landscape: Bool = false,
+		estimatedPageCountMax: Int? = nil,
 		paging: ((Pagination) -> ())? = nil
 	) {
 		self.size = size
 		self.margin = margin
 		self.landscape = landscape
+		self.estimatedPageCountMax = estimatedPageCountMax
 		self.paging = paging
 		self.measurePageOffsetY = -1
+		let printableRect: CGRect = size.rect(landscape: landscape, margin: margin)
 		self.contentRect = insets.apply(to: printableRect)
 	}
 
@@ -62,7 +46,11 @@ public class BasicPagination: Pagination {
 		return id
 	}
 
-	public func measuredGroup(_ id: Int?, _ size: CGSize, pageBreak: Bool, spacingBefore: CGFloat) {
+	func measuredGroup(_ id: Int, _ size: CGSize, spacingBefore: CGFloat = 0) {
+		measuredGroup(id, size, pageBreak: false, spacingBefore: spacingBefore)
+	}
+
+	public func measuredGroup(_ id: Int, _ size: CGSize, pageBreak: Bool, spacingBefore: CGFloat) {
 		let height = size.height
 //print("Group\(id ?? -1) Measured")
 		guard height > 0, height.isFinite else {
@@ -74,22 +62,20 @@ public class BasicPagination: Pagination {
 
 		let newPage = {
 			self.measurePageOffsetY = height
-			if let id {
-				self.pages.insert(id)
-			}
+			self.pages.insert(id)
 		}
 
 		if !hasMeasured {
 			hasMeasured = true
 			newPage()
 //print("Page Height: \(pageHeight)")
-//print("Group\(id ?? -1): FirstMeasure -> \(pages.count) \(measurePageOffsetY)")
+//print("Group\(id): FirstMeasure -> \(pages.count) \(measurePageOffsetY)")
 			return
 		}
 
 		if pageBreak {
 			newPage()
-//print("Group\(id ?? -1): Forced Page Break -> \(pages.count) - \(measurePageOffsetY)")
+//print("Group\(id): Forced Page Break -> \(pages.count) - \(measurePageOffsetY)")
 			return
 		}
 
@@ -97,23 +83,22 @@ public class BasicPagination: Pagination {
 		//TODO: Feature - variable content size for best fit
 		if height > pageHeight {
 			newPage()
-//print("Group\(id ?? -1): Too Tall -> \(pages.count) \(measurePageOffsetY)")
+//print("Group\(id): Too Tall -> \(pages.count) \(measurePageOffsetY)")
 			return
 		}
 
 		let spacing = max(0, spacingBefore)
 		if measurePageOffsetY + spacing + height > pageHeight {
 			newPage()
-//print("Group\(id ?? -1): Does Not Fit -> \(pages.count) - \(measurePageOffsetY)")
+//print("Group\(id): Does Not Fit -> \(pages.count) - \(measurePageOffsetY)")
 			return
 		}
 
 		measurePageOffsetY += spacing + height
-//print("Group\(id ?? -1): Fits -> \(pages.count) \(measurePageOffsetY)")
+//print("Group\(id): Fits -> \(pages.count) \(measurePageOffsetY)")
 	}
 
-	public func renderingGroup(_ id: Int?, from origin: CGPoint) -> CGPoint {
-		guard let id else { return origin }
+	public func renderingGroup(_ id: Int, from origin: CGPoint) -> CGPoint {
 //print("Group\(id) Render")
 		if pages.contains(id) {
 //print("   Paging")
