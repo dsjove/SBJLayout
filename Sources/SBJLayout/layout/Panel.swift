@@ -3,7 +3,6 @@ import CoreGraphics
 public struct Panel<C: Renderable>: Renderable {
 	let insets: Insets
 	//TODO: Feature - Aspect Ratio
-	//TODO: Feature - min/max sizes
 	let background: JCSRect?
 	let content: C?
 

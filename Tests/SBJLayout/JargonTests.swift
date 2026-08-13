@@ -55,10 +55,10 @@ struct JargonTests {
 		let outer = Jargon("Outer", words: ["armor": "Armor"])
 		let inner = Jargon("Inner", overriding: outer, words: ["armor": "AC"])
 
-		RenderableEnvironment.withJargon(outer) {
+		RenderableEnvironment.withContext(jargon: outer) {
 			#expect(RenderableEnvironment.context.jargon.text("armor") == "Armor")
 
-			RenderableEnvironment.withJargon(inner) {
+			RenderableEnvironment.withContext(jargon: inner) {
 				#expect(RenderableEnvironment.context.jargon.text("armor") == "AC")
 			}
 

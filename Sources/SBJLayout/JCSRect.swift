@@ -47,7 +47,7 @@ public struct JCSRect {
 	}
 }
 
-//TODO: Design - see JCSRect comment
+//TODO: API - see JCSRect comment
 public struct JCSLine {
 	public let stroke: UIColor
 	public let lineWidth: CGFloat

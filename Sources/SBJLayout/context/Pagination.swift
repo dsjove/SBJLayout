@@ -22,8 +22,8 @@ public class Pagination {
 	private var renderPageOffsetY: CGFloat = 0
 
 	public init(
-		size: PageSize = PageSize.letter,
-		margin: Insets = .init(dx: 18.0, dy: 18.0),
+		size: PageSize = PageSize.unbounded,
+		margin: Insets = .zero,
 		insets: Insets = .zero,
 		landscape: Bool = false,
 		estimatedPageCountMax: Int? = nil,
