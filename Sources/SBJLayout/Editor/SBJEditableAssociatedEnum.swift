@@ -131,7 +131,7 @@ public struct SBJEditorEnumCase<Root> {
 ///
 /// This conformance is normally synthesized by ``CodableEditor()`` when the
 /// macro is attached to an enum declaration.
-public protocol SBJEditableAssociatedEnum: Codable, SBJEditorCreatable {
+public protocol SBJEditableAssociatedEnum: Codable, SBJEditorCreatable, HasContentCheckable {
     @MainActor
     static var sbjEditorEnumCases: [SBJEditorEnumCase<Self>] { get }
 
@@ -142,6 +142,10 @@ public protocol SBJEditableAssociatedEnum: Codable, SBJEditorCreatable {
 }
 
 public extension SBJEditableAssociatedEnum {
+    /// Associated-value enums are atomic selections by default. A domain type
+    /// can override this when one of its cases represents an empty/default value.
+    var hasContent: Bool { true }
+
     @MainActor
     internal static func _sbjMakeAssociatedEnumEditor(
         label: String,

@@ -57,3 +57,30 @@ extension CodableEditorUsageTests {
         }
     }
 }
+
+@CodableEditor
+private struct TestContentLeaf: Codable {
+    var text: String = ""
+}
+
+@CodableEditor
+private struct TestGeneratedContent: Codable {
+    var scalar: Int = 1
+    var text: String = ""
+    var optionalText: String?
+    var nested = TestContentLeaf()
+    var nestedItems: [TestContentLeaf] = []
+}
+
+extension CodableEditorUsageTests {
+    @Test func generatedHasContentUsesCheckableMembersOnly() {
+        #expect(!TestGeneratedContent().hasContent)
+        #expect(!TestGeneratedContent(scalar: 99).hasContent)
+        #expect(TestGeneratedContent(text: "x").hasContent)
+        #expect(!TestGeneratedContent(optionalText: "").hasContent)
+        #expect(TestGeneratedContent(optionalText: "x").hasContent)
+        #expect(TestGeneratedContent(nested: TestContentLeaf(text: "x")).hasContent)
+        #expect(!TestGeneratedContent(nestedItems: [TestContentLeaf()]).hasContent)
+        #expect(TestGeneratedContent(nestedItems: [TestContentLeaf(text: "x")]).hasContent)
+    }
+}

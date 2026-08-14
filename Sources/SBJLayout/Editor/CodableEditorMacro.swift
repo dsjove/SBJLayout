@@ -9,7 +9,7 @@
 /// enum case while preserving the other associated values.
 @attached(
     member,
-    names: named(sbjEditorFields), named(sbjEditorEnumCases), named(sbjCreateEditorValue), named(sbjCreateEditorValueIfPossible)
+    names: named(sbjEditorFields), named(sbjEditorEnumCases), named(sbjCreateEditorValue), named(sbjCreateEditorValueIfPossible), named(hasContent)
 )
 @attached(extension, conformances: SBJEditable, SBJEditableAssociatedEnum)
 public macro CodableEditor() = #externalMacro(

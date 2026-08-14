@@ -3,7 +3,8 @@ import SwiftUI
 /// A value whose stored properties can be presented by ``SBJCodableEditor``.
 ///
 /// Normally this conformance is synthesized by ``CodableEditor()``.
-public protocol SBJEditable: Codable {
+public protocol SBJEditable: Codable, HasContentCheckable {
+
     @MainActor
     static var sbjEditorFields: [SBJEditorField<Self>] { get }
 }

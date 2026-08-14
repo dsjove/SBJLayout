@@ -51,20 +51,27 @@ public struct CodableEditorMacro: MemberMacro, ExtensionMacro {
         let access = effectiveAccessPrefix(modifiers: structDecl.modifiers, in: context)
 
         var entries: [String] = []
+        var contentMembers: [String] = []
+        let hasExplicitHasContent = structDecl.memberBlock.members.contains { member in
+            guard let variable = member.decl.as(VariableDeclSyntax.self) else { return false }
+            return variable.bindings.contains { binding in
+                binding.pattern.as(IdentifierPatternSyntax.self)?.identifier.text == "hasContent"
+            }
+        }
 
         for member in structDecl.memberBlock.members {
             guard let variable = member.decl.as(VariableDeclSyntax.self) else { continue }
             guard !variable.modifiers.contains(where: { $0.name.tokenKind == .keyword(.static) || $0.name.tokenKind == .keyword(.class) }) else {
                 continue
             }
-            guard !hasAttribute(named: "NotEditable", on: variable) else { continue }
-
             for binding in variable.bindings {
                 guard let identifier = binding.pattern.as(IdentifierPatternSyntax.self) else { continue }
                 let name = identifier.identifier.text
 
                 guard binding.accessorBlock == nil else { continue }
                 if let codedNames, !codedNames.contains(name) { continue }
+
+                if hasAttribute(named: "NotEditable", on: variable) { continue }
 
                 if variable.bindingSpecifier.tokenKind == .keyword(.let) {
                     context.diagnose(
@@ -75,6 +82,11 @@ public struct CodableEditorMacro: MemberMacro, ExtensionMacro {
                     )
                     continue
                 }
+
+                // Every actual editor field participates. SBJContentCheck only
+                // counts values conforming to HasContentCheckable, so ordinary
+                // scalar values naturally contribute false.
+                contentMembers.append(name)
 
                 let textStyle = editorTextStyle(on: variable)
                 let textStyleArgument = textStyle.map { ", textStyle: \($0)" } ?? ""
@@ -90,7 +102,7 @@ public struct CodableEditorMacro: MemberMacro, ExtensionMacro {
         }
 
         let body = entries.joined(separator: ",\n            ")
-        return [
+        var result: [DeclSyntax] = [
             DeclSyntax(stringLiteral: """
             @MainActor
             \(access)static var sbjEditorFields: [SBJEditorField<Self>] {
@@ -100,6 +112,21 @@ public struct CodableEditorMacro: MemberMacro, ExtensionMacro {
             }
             """)
         ]
+
+        if !hasExplicitHasContent {
+            let expression = contentMembers.isEmpty
+                ? "true"
+                : contentMembers.map { "SBJContentCheck.hasContent(\($0))" }.joined(separator: " ||\n        ")
+            result.append(
+                DeclSyntax(stringLiteral: """
+                \(access)var hasContent: Bool {
+                    \(expression)
+                }
+                """)
+            )
+        }
+
+        return result
     }
 
     // MARK: - Associated-value enums
