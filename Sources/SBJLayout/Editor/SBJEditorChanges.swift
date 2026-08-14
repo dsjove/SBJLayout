@@ -8,15 +8,33 @@ private struct SBJEditorIsChangedKey: EnvironmentKey {
     static let defaultValue = false
 }
 
+private struct SBJEditorShowEmptyContentOnlyKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+private struct SBJEditorHasContentKey: EnvironmentKey {
+    static let defaultValue: Bool? = nil
+}
+
 extension EnvironmentValues {
     var sbjEditorShowChangedOnly: Bool {
         get { self[SBJEditorShowChangedOnlyKey.self] }
         set { self[SBJEditorShowChangedOnlyKey.self] = newValue }
     }
 
+    var sbjEditorShowEmptyContentOnly: Bool {
+        get { self[SBJEditorShowEmptyContentOnlyKey.self] }
+        set { self[SBJEditorShowEmptyContentOnlyKey.self] = newValue }
+    }
+
     var sbjEditorIsChanged: Bool {
         get { self[SBJEditorIsChangedKey.self] }
         set { self[SBJEditorIsChangedKey.self] = newValue }
+    }
+
+    var sbjEditorHasContent: Bool? {
+        get { self[SBJEditorHasContentKey.self] }
+        set { self[SBJEditorHasContentKey.self] = newValue }
     }
 }
 
@@ -65,6 +83,21 @@ struct SBJEditorChangeIndicator: View {
                 .fill(Color.accentColor)
                 .frame(width: 7, height: 7)
                 .accessibilityHidden(true)
+        }
+    }
+}
+
+/// Subtle marker for editor values whose domain-level `hasContent` is false.
+/// Values that do not implement `HasContentCheckable` have no marker.
+struct SBJEditorEmptyContentIndicator: View {
+    @Environment(\.sbjEditorHasContent) private var hasContent
+
+    var body: some View {
+        if hasContent == false {
+            Circle()
+                .stroke(.secondary, lineWidth: 1)
+                .frame(width: 7, height: 7)
+                .accessibilityLabel("No content")
         }
     }
 }

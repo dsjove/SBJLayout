@@ -19,6 +19,18 @@ public extension SBJEditable {
     }
 
     @MainActor
+    internal static func _sbjContainsEmptyContent(
+        value: Any,
+        registry: SBJEditorRegistry
+    ) -> Bool {
+        guard let typed = value as? Self else { return false }
+        if !typed.hasContent { return true }
+        return Self.sbjEditorFields.contains { field in
+            field.containsEmptyContent(root: typed, registry: registry)
+        }
+    }
+
+    @MainActor
     internal static func _sbjCollectIssues(
         value: Any,
         path: [String],

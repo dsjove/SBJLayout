@@ -108,6 +108,46 @@ private protocol _SBJCollectionIssueValue {
     ) -> [SBJEditorIssue]
 }
 
+private protocol _SBJOptionalContentValue {
+    @MainActor
+    static func _sbjContainsEmptyContent(
+        value: Any,
+        registry: SBJEditorRegistry
+    ) -> Bool
+}
+
+private protocol _SBJCollectionContentValue {
+    @MainActor
+    static func _sbjContainsEmptyContent(
+        value: Any,
+        registry: SBJEditorRegistry
+    ) -> Bool
+}
+
+extension Optional: _SBJOptionalContentValue {
+    @MainActor
+    static func _sbjContainsEmptyContent(
+        value: Any,
+        registry: SBJEditorRegistry
+    ) -> Bool {
+        guard let optional = value as? Wrapped?, let wrapped = optional else { return true }
+        return SBJValueEditor.containsEmptyContent(value: wrapped, registry: registry)
+    }
+}
+
+extension Array: _SBJCollectionContentValue {
+    @MainActor
+    static func _sbjContainsEmptyContent(
+        value: Any,
+        registry: SBJEditorRegistry
+    ) -> Bool {
+        guard let values = value as? [Element] else { return false }
+        return values.contains { element in
+            SBJValueEditor.containsEmptyContent(value: element, registry: registry)
+        }
+    }
+}
+
 extension Optional: _SBJOptionalIssueValue {
     @MainActor
     static func _sbjCollectEditorIssues(
@@ -403,6 +443,33 @@ enum SBJValueEditor {
         ]
     }
 
+    @MainActor
+    static func containsEmptyContent<Value>(
+        value: Value,
+        registry: SBJEditorRegistry
+    ) -> Bool {
+        if let checkable = value as? any HasContentCheckable, !checkable.hasContent {
+            return true
+        }
+
+        if registry.hasCustomEditor(Value.self) { return false }
+
+        if let optional = Value.self as? any _SBJOptionalContentValue.Type {
+            return optional._sbjContainsEmptyContent(value: value, registry: registry)
+        }
+        if let collection = Value.self as? any _SBJCollectionContentValue.Type {
+            return collection._sbjContainsEmptyContent(value: value, registry: registry)
+        }
+        if let associatedEnum = Value.self as? any SBJEditableAssociatedEnum.Type {
+            return associatedEnum._sbjContainsEmptyContent(value: value, registry: registry)
+        }
+        if let editable = Value.self as? any SBJEditable.Type {
+            return editable._sbjContainsEmptyContent(value: value, registry: registry)
+        }
+
+        return false
+    }
+
     static func matchesSearch<Value>(
         label: String,
         value: Value,
@@ -497,6 +564,7 @@ private struct SBJEditorFieldName: View {
     var body: some View {
         HStack(spacing: 5) {
             SBJEditorChangeIndicator()
+            SBJEditorEmptyContentIndicator()
             if isUnknown {
                 Text(text)
                     .fontWeight(.semibold)
@@ -642,16 +710,37 @@ private struct SBJOptionalEditor<Wrapped: Codable>: View {
     @State private var pendingFocus: SBJEditorFocusRequest?
     @Environment(\.sbjEditorSearchQuery) private var searchQuery
     @Environment(\.sbjEditorShowChangedOnly) private var showChangedOnly
+    @Environment(\.sbjEditorShowEmptyContentOnly) private var showEmptyContentOnly
+    @Environment(\.sbjEditorHasContent) private var hasContent
 
     private var disclosureBinding: Binding<Bool> {
         Binding(
-            get: { isExpanded || !searchQuery.isEmpty || showChangedOnly },
-            set: { newValue in if searchQuery.isEmpty && !showChangedOnly { isExpanded = newValue } }
+            get: { isExpanded || !searchQuery.isEmpty || showChangedOnly || (showEmptyContentOnly && hasContent != false) },
+            set: { newValue in
+                if searchQuery.isEmpty && !showChangedOnly && !showEmptyContentOnly {
+                    isExpanded = newValue
+                }
+            }
         )
     }
 
     var body: some View {
-        if let unwrapped = Binding($value) {
+        if showEmptyContentOnly && hasContent == false {
+            HStack(alignment: .center, spacing: 8) {
+                if let itemActions {
+                    itemActions.leadingView
+                }
+                if value != nil {
+                    clearButton
+                }
+                SBJEditorFieldName(text: label, isUnknown: false)
+                    .fontWeight((Wrapped.self as? any SBJEditable.Type) != nil ? .semibold : .regular)
+                Spacer(minLength: 0)
+                if let itemActions {
+                    itemActions.trailingView
+                }
+            }
+        } else if let unwrapped = Binding($value) {
             if let editable = Wrapped.self as? any SBJEditable.Type {
                 if editable._sbjEditorFieldCount == 1 {
                     HStack(alignment: .center, spacing: 8) {
@@ -686,7 +775,7 @@ private struct SBJOptionalEditor<Wrapped: Codable>: View {
                             trailingActions: itemActions?.trailingView ?? AnyView(EmptyView())
                         )
 
-                        if isExpanded || !searchQuery.isEmpty || showChangedOnly {
+                        if hasContent != false && (isExpanded || !searchQuery.isEmpty || showChangedOnly || showEmptyContentOnly) {
                             let childSearchQuery = SBJValueEditor.titleMatchesSearch(label, query: searchQuery) ? "" : searchQuery
                             editable._sbjMakeEditorContents(
                                 binding: SBJAnyBinding(unwrapped),
@@ -786,11 +875,17 @@ private struct SBJArrayEditor<Element: Codable>: View {
     @State private var pendingFocus: SBJEditorFocusRequest?
     @Environment(\.sbjEditorSearchQuery) private var searchQuery
     @Environment(\.sbjEditorShowChangedOnly) private var showChangedOnly
+    @Environment(\.sbjEditorShowEmptyContentOnly) private var showEmptyContentOnly
+    @Environment(\.sbjEditorHasContent) private var hasContent
 
     private var disclosureBinding: Binding<Bool> {
         Binding(
-            get: { isExpanded || !searchQuery.isEmpty || showChangedOnly },
-            set: { newValue in if searchQuery.isEmpty && !showChangedOnly { isExpanded = newValue } }
+            get: { isExpanded || !searchQuery.isEmpty || showChangedOnly || (showEmptyContentOnly && hasContent != false) },
+            set: { newValue in
+                if searchQuery.isEmpty && !showChangedOnly && !showEmptyContentOnly {
+                    isExpanded = newValue
+                }
+            }
         )
     }
 
@@ -814,6 +909,9 @@ private struct SBJArrayEditor<Element: Codable>: View {
         }
         return ordered.filter { index in
             if showChangedOnly && !itemHasChanged(at: index) { return false }
+            if showEmptyContentOnly && !SBJValueEditor.containsEmptyContent(value: value[index], registry: registry) {
+                return false
+            }
             guard !searchQuery.isEmpty else { return true }
             if SBJValueEditor.titleMatchesSearch(label, query: searchQuery) { return true }
             let title = itemTitle(for: value[index], index: index).text
@@ -867,7 +965,7 @@ private struct SBJArrayEditor<Element: Codable>: View {
                 )
             )
 
-            if isExpanded || !searchQuery.isEmpty || showChangedOnly {
+            if hasContent != false && (isExpanded || !searchQuery.isEmpty || showChangedOnly || showEmptyContentOnly) {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(Array(displayIndices.enumerated()), id: \.element) { displayOffset, index in
                         let itemLabel = itemTitle(for: value[index], index: displayOffset)
@@ -888,6 +986,7 @@ private struct SBJArrayEditor<Element: Codable>: View {
                         )
                         .environment(\.sbjEditorSearchQuery, itemSearchQuery)
                         .environment(\.sbjEditorIsChanged, itemHasChanged(at: index))
+                        .environment(\.sbjEditorHasContent, (value[index] as? any HasContentCheckable)?.hasContent)
                     }
                 }
                 .padding(.leading, 30)

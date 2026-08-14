@@ -34,3 +34,9 @@ public enum ImageSource: Sendable {
 		}
 	}
 }
+
+extension ImageSource: HasContentCheckable {
+	public var hasContent: Bool {
+		self.isEmpty == false
+	}
+}

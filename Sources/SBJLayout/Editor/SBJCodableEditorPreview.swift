@@ -61,13 +61,13 @@ private struct SBJEditorPreviewModel: Codable {
     var optionalText: String? = "Optional value"
     var nilText: String?
 
-    @EditorArray(title: "name")
+    @EditorArray(title: \SBJEditorPreviewItem.name)
     var orderedItems = [
         SBJEditorPreviewItem(name: "Beta", quantity: 2, note: nil),
         SBJEditorPreviewItem(name: "Alpha", quantity: 1, note: "Optional note")
     ]
 
-    @EditorArray(ordering: false, title: "name")
+    @EditorArray(ordering: false, title: \SBJEditorPreviewItem.name)
     var sortedItems = [
         SBJEditorPreviewItem(name: "Zulu", quantity: 1, note: nil),
         SBJEditorPreviewItem(name: "Echo", quantity: 1, note: nil)

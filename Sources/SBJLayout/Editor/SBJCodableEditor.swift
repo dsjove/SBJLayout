@@ -11,6 +11,7 @@ public struct SBJCodableEditorCore<Value: SBJEditable>: View {
     @State private var searchText = ""
     @State private var effectiveSearchText = ""
     @State private var showChangedOnly = false
+    @State private var showEmptyContentOnly = false
     @State private var originalValue: Value
 
     public init(
@@ -28,7 +29,11 @@ public struct SBJCodableEditorCore<Value: SBJEditable>: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            SBJEditorSearchBar(text: $searchText, showChangedOnly: $showChangedOnly)
+            SBJEditorSearchBar(
+                text: $searchText,
+                showChangedOnly: $showChangedOnly,
+                showEmptyContentOnly: $showEmptyContentOnly
+            )
 
             ForEach(Array(Value.sbjEditorFields.enumerated()), id: \.offset) { _, field in
                 field.view(root: $value, originalRoot: originalValue, registry: registry)
@@ -50,6 +55,7 @@ public struct SBJCodableEditorCore<Value: SBJEditable>: View {
             effectiveSearchText = searchText
         }
         .environment(\.sbjEditorShowChangedOnly, showChangedOnly)
+        .environment(\.sbjEditorShowEmptyContentOnly, showEmptyContentOnly)
         .environment(\.sbjEditorShowIssues, {
             isShowingIssues = true
         })
@@ -96,17 +102,44 @@ struct SBJObjectEditor<Value: SBJEditable>: View {
     @State private var isExpanded = false
     @Environment(\.sbjEditorSearchQuery) private var searchQuery
     @Environment(\.sbjEditorShowChangedOnly) private var showChangedOnly
+    @Environment(\.sbjEditorShowEmptyContentOnly) private var showEmptyContentOnly
+    @Environment(\.sbjEditorHasContent) private var hasContent
 
     private var disclosureBinding: Binding<Bool> {
         Binding(
-            get: { isExpanded || !searchQuery.isEmpty || showChangedOnly },
-            set: { newValue in if searchQuery.isEmpty && !showChangedOnly { isExpanded = newValue } }
+            get: { isExpanded || !searchQuery.isEmpty || showChangedOnly || (showEmptyContentOnly && hasContent != false) },
+            set: { newValue in
+                if searchQuery.isEmpty && !showChangedOnly && !showEmptyContentOnly {
+                    isExpanded = newValue
+                }
+            }
         )
     }
 
     var body: some View {
         Group {
-            if Value.sbjEditorFields.count == 1, let field = Value.sbjEditorFields.first {
+            if showEmptyContentOnly && hasContent == false {
+                HStack(alignment: .center, spacing: 8) {
+                    if let itemActions {
+                        itemActions.leadingView
+                    }
+                    SBJEditorChangeIndicator()
+                    SBJEditorEmptyContentIndicator()
+                    if titleIsUnknown {
+                        Text(title).fontWeight(.semibold).italic()
+                    } else {
+                        Text(title).fontWeight(.semibold)
+                    }
+                    Spacer(minLength: 0)
+                    if let itemActions {
+                        itemActions.trailingView
+                    }
+                }
+                .padding(.vertical, 5)
+                .padding(.horizontal, 6)
+                .background(Color.secondary.opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+            } else if Value.sbjEditorFields.count == 1, let field = Value.sbjEditorFields.first {
                 HStack(alignment: .center, spacing: 8) {
                     if let itemActions {
                         itemActions.leadingView
@@ -133,7 +166,7 @@ struct SBJObjectEditor<Value: SBJEditable>: View {
                         titleIsUnknown: titleIsUnknown
                     )
 
-                    if isExpanded || !searchQuery.isEmpty || showChangedOnly {
+                    if hasContent != false && (isExpanded || !searchQuery.isEmpty || showChangedOnly || showEmptyContentOnly) {
                         let childSearchQuery = SBJValueEditor.titleMatchesSearch(title, query: searchQuery) ? "" : searchQuery
                         VStack(alignment: .leading, spacing: 8) {
                             ForEach(Array(Value.sbjEditorFields.enumerated()), id: \.offset) { _, field in

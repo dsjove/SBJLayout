@@ -81,10 +81,9 @@ public extension Sequence {
 }
 
 /// Runtime bridge used by macro-generated content checks. Values with no
-/// meaningful content semantics (for example ordinary numeric or enum scalars)
-/// simply contribute `false` to the enclosing generated OR expression.
+/// explicit content semantics are considered to have content by default.
 public enum SBJContentCheck {
     public static func hasContent<T>(_ value: T) -> Bool {
-        (value as? any HasContentCheckable)?.hasContent ?? false
+        (value as? any HasContentCheckable)?.hasContent ?? true
     }
 }

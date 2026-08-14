@@ -113,14 +113,22 @@ public struct CodableEditorMacro: MemberMacro, ExtensionMacro {
             """)
         ]
 
+        let contentExpression = contentMembers.isEmpty
+            ? "true"
+            : contentMembers.map { "SBJContentCheck.hasContent(\($0))" }.joined(separator: " ||\n        ")
+        result.append(
+            DeclSyntax(stringLiteral: """
+            \(access)var _hasContent: Bool {
+                \(contentExpression)
+            }
+            """)
+        )
+
         if !hasExplicitHasContent {
-            let expression = contentMembers.isEmpty
-                ? "true"
-                : contentMembers.map { "SBJContentCheck.hasContent(\($0))" }.joined(separator: " ||\n        ")
             result.append(
                 DeclSyntax(stringLiteral: """
                 \(access)var hasContent: Bool {
-                    \(expression)
+                    _hasContent
                 }
                 """)
             )
@@ -462,8 +470,8 @@ public struct CodableEditorMacro: MemberMacro, ExtensionMacro {
                     let expression = argument.expression.trimmedDescription
                     if expression == "nil" {
                         title = nil
-                    } else if expression.hasPrefix("\"") && expression.hasSuffix("\"") {
-                        title = String(expression.dropFirst().dropLast())
+                    } else {
+                        title = keyPathPropertyName(from: expression)
                     }
                 default:
                     continue
@@ -472,6 +480,15 @@ public struct CodableEditorMacro: MemberMacro, ExtensionMacro {
             return (ordering, title)
         }
         return (nil, nil)
+    }
+
+    private static func keyPathPropertyName(from expression: String) -> String? {
+        guard expression.hasPrefix("\\") else { return nil }
+        let body = String(expression.dropFirst())
+        guard let component = body.split(separator: ".").last, !component.isEmpty else {
+            return nil
+        }
+        return String(component)
     }
 
     private static func hasAttribute(named name: String, on variable: VariableDeclSyntax) -> Bool {

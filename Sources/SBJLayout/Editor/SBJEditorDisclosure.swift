@@ -45,6 +45,7 @@ struct SBJEditorDisclosureHeader: View {
             leadingActions
 
             SBJEditorChangeIndicator()
+            SBJEditorEmptyContentIndicator()
 
             Button(action: toggle) {
                 HStack(spacing: 8) {

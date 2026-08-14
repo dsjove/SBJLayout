@@ -73,9 +73,9 @@ private struct TestGeneratedContent: Codable {
 }
 
 extension CodableEditorUsageTests {
-    @Test func generatedHasContentUsesCheckableMembersOnly() {
-        #expect(!TestGeneratedContent().hasContent)
-        #expect(!TestGeneratedContent(scalar: 99).hasContent)
+    @Test func generatedHasContentDefaultsUnknownMembersToContent() {
+        #expect(TestGeneratedContent().hasContent)
+        #expect(TestGeneratedContent(scalar: 99).hasContent)
         #expect(TestGeneratedContent(text: "x").hasContent)
         #expect(!TestGeneratedContent(optionalText: "").hasContent)
         #expect(TestGeneratedContent(optionalText: "x").hasContent)

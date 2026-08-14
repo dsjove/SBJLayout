@@ -13,6 +13,8 @@ public struct SBJEditorField<Root> {
     private let collectIssues: (Root, [String], SBJEditorRegistry) -> [SBJEditorIssue]
     private let matchesSearch: (Root, String, SBJEditorRegistry) -> Bool
     private let hasChanged: (Root, Root?) -> Bool
+    private let hasContent: (Root) -> Bool?
+    private let containsEmptyContent: (Root, SBJEditorRegistry) -> Bool
 
     public init<Value: Codable>(
         name: String,
@@ -66,6 +68,22 @@ public struct SBJEditorField<Root> {
                 from: originalRoot[keyPath: keyPath]
             )
         }
+        self.hasContent = { root in
+            (root[keyPath: keyPath] as? any HasContentCheckable)?.hasContent
+        }
+        self.containsEmptyContent = { root, registry in
+            SBJValueEditor.containsEmptyContent(
+                value: root[keyPath: keyPath],
+                registry: registry
+            )
+        }
+    }
+
+    func containsEmptyContent(
+        root: Root,
+        registry: SBJEditorRegistry
+    ) -> Bool {
+        containsEmptyContent(root, registry)
     }
 
     func issues(
@@ -85,14 +103,19 @@ public struct SBJEditorField<Root> {
         labelIsUnknown: Bool = false
     ) -> AnyView {
         let changed = hasChanged(root.wrappedValue, originalRoot)
+        let contentState = hasContent(root.wrappedValue)
         let content = makeView(root, originalRoot, registry, nameOverride, focusRequest, labelIsUnknown)
             .environment(\.sbjEditorIsChanged, changed)
+            .environment(\.sbjEditorHasContent, contentState)
         return AnyView(
             SBJEditorFilteredView(
                 content: AnyView(content),
                 isChanged: changed,
                 matchesSearch: { query in
                     matchesSearch(root.wrappedValue, query, registry)
+                },
+                containsEmptyContent: {
+                    containsEmptyContent(root.wrappedValue, registry)
                 }
             )
         )
@@ -104,12 +127,16 @@ struct SBJEditorFilteredView: View {
     let content: AnyView
     let isChanged: Bool
     let matchesSearch: (String) -> Bool
+    let containsEmptyContent: () -> Bool
     @Environment(\.sbjEditorSearchQuery) private var query
     @Environment(\.sbjEditorShowChangedOnly) private var showChangedOnly
+    @Environment(\.sbjEditorShowEmptyContentOnly) private var showEmptyContentOnly
 
     @ViewBuilder
     var body: some View {
-        if (!showChangedOnly || isChanged) && (query.isEmpty || matchesSearch(query)) {
+        if (!showChangedOnly || isChanged) &&
+            (!showEmptyContentOnly || containsEmptyContent()) &&
+            (query.isEmpty || matchesSearch(query)) {
             content
         }
     }

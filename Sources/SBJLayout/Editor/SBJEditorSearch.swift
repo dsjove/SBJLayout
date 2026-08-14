@@ -15,6 +15,7 @@ extension EnvironmentValues {
 struct SBJEditorSearchBar: View {
     @Binding var text: String
     @Binding var showChangedOnly: Bool
+    @Binding var showEmptyContentOnly: Bool
 
     var body: some View {
         HStack(spacing: 8) {
@@ -26,10 +27,33 @@ struct SBJEditorSearchBar: View {
                 showChangedOnly.toggle()
             } label: {
                 Image(systemName: "line.3.horizontal.decrease.circle")
-                    .foregroundStyle(showChangedOnly ? Color.accentColor : Color.secondary)
+                    .foregroundStyle(showChangedOnly ? Color.white : Color.secondary)
+                    .frame(width: 28, height: 28)
+                    .background {
+                        if showChangedOnly {
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(Color.accentColor)
+                        }
+                    }
             }
             .buttonStyle(.borderless)
             .accessibilityLabel(showChangedOnly ? "Show all values" : "Show changed values only")
+
+            Button {
+                showEmptyContentOnly.toggle()
+            } label: {
+                Image(systemName: "circle")
+                    .foregroundStyle(showEmptyContentOnly ? Color.white : Color.secondary)
+                    .frame(width: 28, height: 28)
+                    .background {
+                        if showEmptyContentOnly {
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(Color.accentColor)
+                        }
+                    }
+            }
+            .buttonStyle(.borderless)
+            .accessibilityLabel(showEmptyContentOnly ? "Show all values" : "Show values with no content only")
 
             if !text.isEmpty {
                 Button {

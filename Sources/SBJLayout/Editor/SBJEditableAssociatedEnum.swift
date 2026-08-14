@@ -9,6 +9,8 @@ public struct SBJEditorAssociatedValue<Root> {
     private let collectIssues: (Root, [String], SBJEditorRegistry) -> [SBJEditorIssue]
     private let matchesSearch: (Root, String, SBJEditorRegistry) -> Bool
     private let hasChanged: (Root, Root?) -> Bool
+    private let hasContent: (Root) -> Bool?
+    private let containsEmptyContent: (Root, SBJEditorRegistry) -> Bool
 
     public init<Value: Codable>(
         name: String,
@@ -53,6 +55,12 @@ public struct SBJEditorAssociatedValue<Root> {
             guard let originalRoot else { return true }
             return SBJEditorChangeComparison.isChanged(get(root), from: get(originalRoot))
         }
+        self.hasContent = { root in
+            (get(root) as? any HasContentCheckable)?.hasContent
+        }
+        self.containsEmptyContent = { root, registry in
+            SBJValueEditor.containsEmptyContent(value: get(root), registry: registry)
+        }
     }
 
     func view(
@@ -62,15 +70,25 @@ public struct SBJEditorAssociatedValue<Root> {
         focusRequest: SBJEditorFocusRequest?
     ) -> AnyView {
         let changed = hasChanged(root.wrappedValue, originalRoot)
+        let contentState = hasContent(root.wrappedValue)
         let content = makeView(root, originalRoot, registry, focusRequest)
             .environment(\.sbjEditorIsChanged, changed)
+            .environment(\.sbjEditorHasContent, contentState)
         return AnyView(
             SBJEditorFilteredView(
                 content: AnyView(content),
                 isChanged: changed,
-                matchesSearch: { query in matchesSearch(root.wrappedValue, query, registry) }
+                matchesSearch: { query in matchesSearch(root.wrappedValue, query, registry) },
+                containsEmptyContent: { containsEmptyContent(root.wrappedValue, registry) }
             )
         )
+    }
+
+    func containsEmptyContent(
+        root: Root,
+        registry: SBJEditorRegistry
+    ) -> Bool {
+        containsEmptyContent(root, registry)
     }
 
     func issues(
@@ -113,6 +131,16 @@ public struct SBJEditorEnumCase<Root> {
 
     var canCreate: Bool {
         createValue() != nil
+    }
+
+    func containsEmptyContent(
+        value: Root,
+        registry: SBJEditorRegistry
+    ) -> Bool {
+        guard matches(value) else { return false }
+        return associatedValues.contains { field in
+            field.containsEmptyContent(root: value, registry: registry)
+        }
     }
 
     func issues(
@@ -172,6 +200,19 @@ public extension SBJEditableAssociatedEnum {
     }
 
     @MainActor
+    internal static func _sbjContainsEmptyContent(
+        value: Any,
+        registry: SBJEditorRegistry
+    ) -> Bool {
+        guard let typed = value as? Self else { return false }
+        if !typed.hasContent { return true }
+        guard let selected = sbjEditorEnumCases.first(where: { $0.matches(typed) }) else {
+            return false
+        }
+        return selected.containsEmptyContent(value: typed, registry: registry)
+    }
+
+    @MainActor
     internal static func _sbjCollectAssociatedEnumIssues(
         value: Any,
         path: [String],
@@ -219,6 +260,8 @@ private struct SBJAssociatedEnumEditor<Value: SBJEditableAssociatedEnum>: View {
     let registry: SBJEditorRegistry
     let focusRequest: SBJEditorFocusRequest?
     let labelIsUnknown: Bool
+    @Environment(\.sbjEditorShowEmptyContentOnly) private var showEmptyContentOnly
+    @Environment(\.sbjEditorHasContent) private var hasContent
 
     private var selectedCase: SBJEditorEnumCase<Value>? {
         Value.sbjEditorEnumCases.first(where: { $0.matches(value) })
@@ -249,7 +292,7 @@ private struct SBJAssociatedEnumEditor<Value: SBJEditableAssociatedEnum>: View {
                 Spacer(minLength: 0)
             }
 
-            if let selectedCase, !selectedCase.associatedValues.isEmpty {
+            if hasContent != false, let selectedCase, !selectedCase.associatedValues.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(Array(selectedCase.associatedValues.enumerated()), id: \.offset) { _, field in
                         field.view(
@@ -273,6 +316,7 @@ private struct SBJAssociatedEnumLabel: View {
     var body: some View {
         HStack(spacing: 5) {
             SBJEditorChangeIndicator()
+            SBJEditorEmptyContentIndicator()
             if isUnknown {
                 Text(text).fontWeight(.semibold).italic()
             } else {
