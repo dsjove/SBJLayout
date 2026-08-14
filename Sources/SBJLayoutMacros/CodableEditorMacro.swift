@@ -52,11 +52,16 @@ public struct CodableEditorMacro: MemberMacro, ExtensionMacro {
 
         var entries: [String] = []
         var contentMembers: [String] = []
+        var invariantStatements: [String] = []
         let hasExplicitHasContent = structDecl.memberBlock.members.contains { member in
             guard let variable = member.decl.as(VariableDeclSyntax.self) else { return false }
             return variable.bindings.contains { binding in
                 binding.pattern.as(IdentifierPatternSyntax.self)?.identifier.text == "hasContent"
             }
+        }
+        let hasExplicitInvariant = structDecl.memberBlock.members.contains { member in
+            guard let function = member.decl.as(FunctionDeclSyntax.self) else { return false }
+            return function.name.text == "invariant"
         }
 
         for member in structDecl.memberBlock.members {
@@ -87,12 +92,34 @@ public struct CodableEditorMacro: MemberMacro, ExtensionMacro {
                 // counts values conforming to HasContentCheckable, so ordinary
                 // scalar values naturally contribute false.
                 contentMembers.append(name)
+                invariantStatements.append("try SBJInvariantCheck.validate(\(name), at: keyPath.appending(\\Self.\(name)))")
+
+                let textConstraints = editorTextConstraints(on: variable)
+                if textConstraints.minLength != nil || textConstraints.maxLength != nil {
+                    let minLength = textConstraints.minLength ?? "nil"
+                    let maxLength = textConstraints.maxLength ?? "nil"
+                    invariantStatements.append("try SBJInvariantCheck.requireText(\(name), minLength: \(minLength), maxLength: \(maxLength), at: keyPath.appending(\\Self.\(name)))")
+                }
+                let integerRange = editorIntegerRange(on: variable)
+                if let integerRange {
+                    invariantStatements.append("try SBJInvariantCheck.requireRange(\(name), \(integerRange), at: keyPath.appending(\\Self.\(name)))")
+                }
+                if let numberRange = editorNumberRange(on: variable) {
+                    invariantStatements.append("try SBJInvariantCheck.requireRange(\(name), \(numberRange), at: keyPath.appending(\\Self.\(name)))")
+                }
+                if let required = editorOptionalRequired(on: variable) {
+                    invariantStatements.append("try SBJInvariantCheck.requirePresent(\(name), required: \(required), at: keyPath.appending(\\Self.\(name)))")
+                }
+                let arrayOptions = editorArrayOptions(on: variable)
+                if arrayOptions.minCount != nil || arrayOptions.maxCount != nil {
+                    let minCount = arrayOptions.minCount ?? "nil"
+                    let maxCount = arrayOptions.maxCount ?? "nil"
+                    invariantStatements.append("try SBJInvariantCheck.requireCount(\(name), minCount: \(minCount), maxCount: \(maxCount), at: keyPath.appending(\\Self.\(name)))")
+                }
 
                 let textStyle = editorTextStyle(on: variable)
                 let textStyleArgument = textStyle.map { ", textStyle: \($0)" } ?? ""
-                let integerRange = editorIntegerRange(on: variable)
                 let integerRangeArgument = integerRange.map { ", integerRange: \($0)" } ?? ""
-                let arrayOptions = editorArrayOptions(on: variable)
                 let arrayOrderingArgument = arrayOptions.ordering.map { ", arrayOrdering: \($0)" } ?? ""
                 let arrayTitleArgument = arrayOptions.title.map { ", arrayItemTitleKey: \"\($0)\"" } ?? ""
                 entries.append(
@@ -129,6 +156,24 @@ public struct CodableEditorMacro: MemberMacro, ExtensionMacro {
                 DeclSyntax(stringLiteral: """
                 \(access)var hasContent: Bool {
                     _hasContent
+                }
+                """)
+            )
+        }
+
+        let invariantBody = invariantStatements.isEmpty ? "" : invariantStatements.joined(separator: "\n        ")
+        result.append(
+            DeclSyntax(stringLiteral: """
+            \(access)func _invariant(at keyPath: SBJValidationKeyPath) throws {
+                \(invariantBody)
+            }
+            """)
+        )
+        if !hasExplicitInvariant {
+            result.append(
+                DeclSyntax(stringLiteral: """
+                \(access)func invariant(at keyPath: SBJValidationKeyPath) throws {
+                    try _invariant(at: keyPath)
                 }
                 """)
             )
@@ -432,6 +477,53 @@ public struct CodableEditorMacro: MemberMacro, ExtensionMacro {
     }
 
 
+    private static func editorTextConstraints(on variable: VariableDeclSyntax) -> (minLength: String?, maxLength: String?) {
+        for element in variable.attributes {
+            guard case .attribute(let attribute) = element else { continue }
+            guard attribute.attributeName.trimmedDescription == "EditorText" else { continue }
+            guard let rawArguments = attribute.arguments,
+                  case .argumentList(let arguments) = rawArguments else { return (nil, nil) }
+            var minLength: String?
+            var maxLength: String?
+            for argument in arguments {
+                switch argument.label?.text {
+                case "minLength": minLength = argument.expression.trimmedDescription
+                case "maxLength": maxLength = argument.expression.trimmedDescription
+                default: break
+                }
+            }
+            return (minLength, maxLength)
+        }
+        return (nil, nil)
+    }
+
+    private static func editorNumberRange(on variable: VariableDeclSyntax) -> String? {
+        for element in variable.attributes {
+            guard case .attribute(let attribute) = element else { continue }
+            guard attribute.attributeName.trimmedDescription == "EditorNumber" else { continue }
+            guard let rawArguments = attribute.arguments,
+                  case .argumentList(let arguments) = rawArguments else { return nil }
+            for argument in arguments where argument.label?.text == "range" {
+                return argument.expression.trimmedDescription
+            }
+        }
+        return nil
+    }
+
+    private static func editorOptionalRequired(on variable: VariableDeclSyntax) -> String? {
+        for element in variable.attributes {
+            guard case .attribute(let attribute) = element else { continue }
+            guard attribute.attributeName.trimmedDescription == "EditorOptional" else { continue }
+            guard let rawArguments = attribute.arguments,
+                  case .argumentList(let arguments) = rawArguments else { return "true" }
+            for argument in arguments where argument.label?.text == "required" {
+                return argument.expression.trimmedDescription
+            }
+            return "true"
+        }
+        return nil
+    }
+
     private static func editorIntegerRange(on variable: VariableDeclSyntax) -> String? {
         for element in variable.attributes {
             guard case .attribute(let attribute) = element else { continue }
@@ -447,17 +539,19 @@ public struct CodableEditorMacro: MemberMacro, ExtensionMacro {
         return nil
     }
 
-    private static func editorArrayOptions(on variable: VariableDeclSyntax) -> (ordering: String?, title: String?) {
+    private static func editorArrayOptions(on variable: VariableDeclSyntax) -> (ordering: String?, title: String?, minCount: String?, maxCount: String?) {
         for element in variable.attributes {
             guard case .attribute(let attribute) = element else { continue }
             guard attribute.attributeName.trimmedDescription == "EditorArray" else { continue }
             guard let rawArguments = attribute.arguments,
                   case .argumentList(let arguments) = rawArguments else {
-                return ("true", nil)
+                return ("true", nil, nil, nil)
             }
 
             var ordering: String? = "true"
             var title: String?
+            var minCount: String?
+            var maxCount: String?
             for argument in arguments {
                 switch argument.label?.text {
                 case "ordering":
@@ -473,13 +567,15 @@ public struct CodableEditorMacro: MemberMacro, ExtensionMacro {
                     } else {
                         title = keyPathPropertyName(from: expression)
                     }
+                case "minCount": minCount = argument.expression.trimmedDescription
+                case "maxCount": maxCount = argument.expression.trimmedDescription
                 default:
                     continue
                 }
             }
-            return (ordering, title)
+            return (ordering, title, minCount, maxCount)
         }
-        return (nil, nil)
+        return (nil, nil, nil, nil)
     }
 
     private static func keyPathPropertyName(from expression: String) -> String? {

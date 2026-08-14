@@ -16,6 +16,8 @@ struct SBJEditorSearchBar: View {
     @Binding var text: String
     @Binding var showChangedOnly: Bool
     @Binding var showEmptyContentOnly: Bool
+    let hasIssues: Bool
+    let showIssues: () -> Void
 
     var body: some View {
         HStack(spacing: 8) {
@@ -55,6 +57,16 @@ struct SBJEditorSearchBar: View {
             .buttonStyle(.borderless)
             .accessibilityLabel(showEmptyContentOnly ? "Show all values" : "Show values with no content only")
 
+
+            if hasIssues {
+                Button(action: showIssues) {
+                    Image(systemName: "exclamationmark.circle.fill")
+                        .foregroundStyle(.red)
+                        .frame(width: 28, height: 28)
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel("Show editor issues")
+            }
             if !text.isEmpty {
                 Button {
                     text = ""

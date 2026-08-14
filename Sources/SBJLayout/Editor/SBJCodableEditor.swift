@@ -32,7 +32,9 @@ public struct SBJCodableEditorCore<Value: SBJEditable>: View {
             SBJEditorSearchBar(
                 text: $searchText,
                 showChangedOnly: $showChangedOnly,
-                showEmptyContentOnly: $showEmptyContentOnly
+                showEmptyContentOnly: $showEmptyContentOnly,
+                hasIssues: !issues.isEmpty,
+                showIssues: { isShowingIssues = true }
             )
 
             ForEach(Array(Value.sbjEditorFields.enumerated()), id: \.offset) { _, field in

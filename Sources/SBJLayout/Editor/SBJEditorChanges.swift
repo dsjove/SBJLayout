@@ -16,6 +16,10 @@ private struct SBJEditorHasContentKey: EnvironmentKey {
     static let defaultValue: Bool? = nil
 }
 
+private struct SBJEditorIsInvalidKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
 extension EnvironmentValues {
     var sbjEditorShowChangedOnly: Bool {
         get { self[SBJEditorShowChangedOnlyKey.self] }
@@ -35,6 +39,11 @@ extension EnvironmentValues {
     var sbjEditorHasContent: Bool? {
         get { self[SBJEditorHasContentKey.self] }
         set { self[SBJEditorHasContentKey.self] = newValue }
+    }
+
+    var sbjEditorIsInvalid: Bool {
+        get { self[SBJEditorIsInvalidKey.self] }
+        set { self[SBJEditorIsInvalidKey.self] = newValue }
     }
 }
 
@@ -109,3 +118,24 @@ struct SBJEditorEmptyContentIndicator: View {
 // TODO: Consider native support for additional common Codable containers/value types as
 // they appear in client models, especially Date, Data, URL, UUID, and RawRepresentable
 // value wrappers that are not already covered by enum/custom-editor support.
+
+private struct SBJEditorValidationLineBackground: ViewModifier {
+    let isInvalid: Bool
+
+    func body(content: Content) -> some View {
+        content.background(alignment: .top) {
+            if isInvalid {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.red.opacity(0.10))
+                    .frame(height: 34)
+                    .allowsHitTesting(false)
+            }
+        }
+    }
+}
+
+extension View {
+    func sbjEditorValidationLineBackground(_ isInvalid: Bool) -> some View {
+        modifier(SBJEditorValidationLineBackground(isInvalid: isInvalid))
+    }
+}

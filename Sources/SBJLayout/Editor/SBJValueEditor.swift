@@ -970,6 +970,10 @@ private struct SBJArrayEditor<Element: Codable>: View {
                     ForEach(Array(displayIndices.enumerated()), id: \.element) { displayOffset, index in
                         let itemLabel = itemTitle(for: value[index], index: displayOffset)
                         let itemSearchQuery = SBJValueEditor.titleMatchesSearch(label, query: searchQuery) ? "" : searchQuery
+                        let itemInvalid = SBJInvariantCheck.validationError(
+                            value[index],
+                            at: SBJValidationKeyPath(\Element.self)
+                        ) != nil
                         SBJValueEditor.makeView(
                             label: itemLabel.text,
                             value: Binding(
@@ -987,6 +991,8 @@ private struct SBJArrayEditor<Element: Codable>: View {
                         .environment(\.sbjEditorSearchQuery, itemSearchQuery)
                         .environment(\.sbjEditorIsChanged, itemHasChanged(at: index))
                         .environment(\.sbjEditorHasContent, (value[index] as? any HasContentCheckable)?.hasContent)
+                        .environment(\.sbjEditorIsInvalid, itemInvalid)
+                        .sbjEditorValidationLineBackground(itemInvalid)
                     }
                 }
                 .padding(.leading, 30)

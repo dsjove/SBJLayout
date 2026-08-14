@@ -15,6 +15,8 @@ public struct SBJEditorField<Root> {
     private let hasChanged: (Root, Root?) -> Bool
     private let hasContent: (Root) -> Bool?
     private let containsEmptyContent: (Root, SBJEditorRegistry) -> Bool
+    private let validationError: (Root) -> SBJValidationError?
+    private let validationKeyPath: AnyKeyPath
 
     public init<Value: Codable>(
         name: String,
@@ -25,6 +27,7 @@ public struct SBJEditorField<Root> {
         arrayItemTitleKey: String? = nil
     ) {
         self.name = name
+        self.validationKeyPath = keyPath
         self.makeView = { root, originalRoot, registry, overrideName, focusRequest, labelIsUnknown in
             let value = Binding<Value>(
                 get: { root.wrappedValue[keyPath: keyPath] },
@@ -77,6 +80,12 @@ public struct SBJEditorField<Root> {
                 registry: registry
             )
         }
+        self.validationError = { root in
+            SBJInvariantCheck.validationError(
+                root[keyPath: keyPath],
+                at: SBJValidationKeyPath(keyPath)
+            )
+        }
     }
 
     func containsEmptyContent(
@@ -91,7 +100,11 @@ public struct SBJEditorField<Root> {
         path: [String],
         registry: SBJEditorRegistry
     ) -> [SBJEditorIssue] {
-        collectIssues(root, path, registry)
+        var result = collectIssues(root, path, registry)
+        if let error = validationError(root) {
+            result.append(.validation(path: error.keyPath.description, message: error.localizedDescription))
+        }
+        return result
     }
 
     func view(
@@ -104,9 +117,17 @@ public struct SBJEditorField<Root> {
     ) -> AnyView {
         let changed = hasChanged(root.wrappedValue, originalRoot)
         let contentState = hasContent(root.wrappedValue)
+        let rootValidationError = SBJInvariantCheck.validationError(
+            root.wrappedValue,
+            at: SBJValidationKeyPath(\Root.self)
+        )
+        let invalid = validationError(root.wrappedValue) != nil ||
+            (rootValidationError?.keyPath.contains(property: validationKeyPath) == true)
         let content = makeView(root, originalRoot, registry, nameOverride, focusRequest, labelIsUnknown)
             .environment(\.sbjEditorIsChanged, changed)
             .environment(\.sbjEditorHasContent, contentState)
+            .environment(\.sbjEditorIsInvalid, invalid)
+            .sbjEditorValidationLineBackground(invalid)
         return AnyView(
             SBJEditorFilteredView(
                 content: AnyView(content),

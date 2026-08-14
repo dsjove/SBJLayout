@@ -2,16 +2,24 @@ import SwiftUI
 
 /// One property for which the generic editor has no registered/built-in editor.
 public struct SBJEditorIssue: Identifiable, Hashable {
+    public enum Kind: Hashable { case unsupported, validation }
+
+    public let kind: Kind
     public let path: String
     public let typeName: String
     public let valueDescription: String?
 
     public var id: String { "\(path)|\(typeName)" }
 
-    public init(path: String, typeName: String, valueDescription: String?) {
+    public init(path: String, typeName: String, valueDescription: String?, kind: Kind = .unsupported) {
+        self.kind = kind
         self.path = path
         self.typeName = typeName
         self.valueDescription = valueDescription
+    }
+
+    public static func validation(path: String, message: String) -> Self {
+        .init(path: path, typeName: "Validation", valueDescription: message, kind: .validation)
     }
 }
 
@@ -82,7 +90,7 @@ public struct SBJEditorIssueList: View {
                 }
                 .padding()
             }
-            .navigationTitle("Unsupported Properties")
+            .navigationTitle("Editor Issues")
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
@@ -100,8 +108,13 @@ public enum SBJEditorDiagnostics {
         for value: Value,
         registry: SBJEditorRegistry = .init()
     ) -> [SBJEditorIssue] {
-        Value.sbjEditorFields.flatMap { field in
+        let all = Value.sbjEditorFields.flatMap { field in
             field.issues(root: value, path: [], registry: registry)
+        }
+        var seen = Set<String>()
+        return all.filter { issue in
+            let key = "\(issue.kind)|\(issue.path)|\(issue.valueDescription ?? "")"
+            return seen.insert(key).inserted
         }
     }
 }

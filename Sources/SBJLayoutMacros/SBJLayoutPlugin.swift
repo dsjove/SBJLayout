@@ -8,6 +8,8 @@ struct SBJLayoutPlugin: CompilerPlugin {
         NotEditableMacro.self,
         EditorTextMacro.self,
         EditorIntegerMacro.self,
+        EditorNumberMacro.self,
+        EditorOptionalMacro.self,
         EditorArrayMacro.self,
     ]
 }

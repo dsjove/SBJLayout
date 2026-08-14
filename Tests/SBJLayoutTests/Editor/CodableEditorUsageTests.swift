@@ -84,3 +84,43 @@ extension CodableEditorUsageTests {
         #expect(TestGeneratedContent(nestedItems: [TestContentLeaf(text: "x")]).hasContent)
     }
 }
+
+@CodableEditor
+private struct TestValidatedValue: Codable {
+    @EditorInteger(range: 1...20)
+    var level: Int = 1
+
+    @EditorText(minLength: 2, maxLength: 5)
+    var code: String = "ok"
+
+    @EditorArray(minCount: 1, maxCount: 2)
+    var names: [String] = ["one"]
+
+    @EditorOptional(required: true)
+    var nickname: String? = "x"
+
+    @EditorNumber(range: 0.0...1.0)
+    var ratio: Double = 0.5
+}
+
+extension CodableEditorUsageTests {
+    @Test func generatedInvariantUsesLocalEditorConstraints() throws {
+        try TestValidatedValue().invariant(at: \TestValidatedValue.self)
+
+        #expect(throws: SBJValidationError.self) {
+            try TestValidatedValue(level: 21).invariant(at: \TestValidatedValue.self)
+        }
+        #expect(throws: SBJValidationError.self) {
+            try TestValidatedValue(code: "x").invariant(at: \TestValidatedValue.self)
+        }
+        #expect(throws: SBJValidationError.self) {
+            try TestValidatedValue(names: []).invariant(at: \TestValidatedValue.self)
+        }
+        #expect(throws: SBJValidationError.self) {
+            try TestValidatedValue(nickname: nil).invariant(at: \TestValidatedValue.self)
+        }
+        #expect(throws: SBJValidationError.self) {
+            try TestValidatedValue(ratio: 2).invariant(at: \TestValidatedValue.self)
+        }
+    }
+}
