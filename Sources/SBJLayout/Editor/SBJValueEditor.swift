@@ -775,7 +775,7 @@ private struct SBJOptionalEditor<Wrapped: Codable>: View {
                             trailingActions: itemActions?.trailingView ?? AnyView(EmptyView())
                         )
 
-                        if hasContent != false && (isExpanded || !searchQuery.isEmpty || showChangedOnly || showEmptyContentOnly) {
+                        if isExpanded || !searchQuery.isEmpty || showChangedOnly || showEmptyContentOnly {
                             let childSearchQuery = SBJValueEditor.titleMatchesSearch(label, query: searchQuery) ? "" : searchQuery
                             editable._sbjMakeEditorContents(
                                 binding: SBJAnyBinding(unwrapped),
@@ -965,7 +965,7 @@ private struct SBJArrayEditor<Element: Codable>: View {
                 )
             )
 
-            if hasContent != false && (isExpanded || !searchQuery.isEmpty || showChangedOnly || showEmptyContentOnly) {
+            if isExpanded || !searchQuery.isEmpty || showChangedOnly || showEmptyContentOnly {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(Array(displayIndices.enumerated()), id: \.element) { displayOffset, index in
                         let itemLabel = itemTitle(for: value[index], index: displayOffset)

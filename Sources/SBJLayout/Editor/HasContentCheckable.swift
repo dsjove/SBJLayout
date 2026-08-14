@@ -155,7 +155,7 @@ public extension Sequence {
 
 public enum SBJContentCheck {
     public static func hasContent<T>(_ value: T) -> Bool {
-        (value as? any HasContentCheckable)?.hasContent ?? true
+        (value as? any HasContentCheckable)?.hasContent ?? false
     }
 }
 
@@ -197,6 +197,20 @@ public enum SBJInvariantCheck {
     public static func requireRange(_ values: [Int], _ range: ClosedRange<Int>, at keyPath: SBJValidationKeyPath) throws {
         for (index, value) in values.enumerated() {
             try requireRange(value, range, at: keyPath.appending(index: index))
+        }
+    }
+
+    public static func requireMinimum(_ value: Int, _ minimum: Int, at keyPath: SBJValidationKeyPath) throws {
+        try require(value >= minimum, at: keyPath, "must be at least \(minimum)")
+    }
+
+    public static func requireMinimum(_ value: Int?, _ minimum: Int, at keyPath: SBJValidationKeyPath) throws {
+        if let value { try requireMinimum(value, minimum, at: keyPath) }
+    }
+
+    public static func requireMinimum(_ values: [Int], _ minimum: Int, at keyPath: SBJValidationKeyPath) throws {
+        for (index, value) in values.enumerated() {
+            try requireMinimum(value, minimum, at: keyPath.appending(index: index))
         }
     }
 

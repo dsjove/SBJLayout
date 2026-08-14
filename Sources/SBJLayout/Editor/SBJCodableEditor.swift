@@ -168,7 +168,7 @@ struct SBJObjectEditor<Value: SBJEditable>: View {
                         titleIsUnknown: titleIsUnknown
                     )
 
-                    if hasContent != false && (isExpanded || !searchQuery.isEmpty || showChangedOnly || showEmptyContentOnly) {
+                    if isExpanded || !searchQuery.isEmpty || showChangedOnly || showEmptyContentOnly {
                         let childSearchQuery = SBJValueEditor.titleMatchesSearch(title, query: searchQuery) ? "" : searchQuery
                         VStack(alignment: .leading, spacing: 8) {
                             ForEach(Array(Value.sbjEditorFields.enumerated()), id: \.offset) { _, field in

@@ -260,8 +260,6 @@ private struct SBJAssociatedEnumEditor<Value: SBJEditableAssociatedEnum>: View {
     let registry: SBJEditorRegistry
     let focusRequest: SBJEditorFocusRequest?
     let labelIsUnknown: Bool
-    @Environment(\.sbjEditorShowEmptyContentOnly) private var showEmptyContentOnly
-    @Environment(\.sbjEditorHasContent) private var hasContent
 
     private var selectedCase: SBJEditorEnumCase<Value>? {
         Value.sbjEditorEnumCases.first(where: { $0.matches(value) })
@@ -292,7 +290,7 @@ private struct SBJAssociatedEnumEditor<Value: SBJEditableAssociatedEnum>: View {
                 Spacer(minLength: 0)
             }
 
-            if hasContent != false, let selectedCase, !selectedCase.associatedValues.isEmpty {
+            if let selectedCase, !selectedCase.associatedValues.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(Array(selectedCase.associatedValues.enumerated()), id: \.offset) { _, field in
                         field.view(

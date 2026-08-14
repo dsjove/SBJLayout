@@ -100,10 +100,14 @@ public struct CodableEditorMacro: MemberMacro, ExtensionMacro {
                     let maxLength = textConstraints.maxLength ?? "nil"
                     invariantStatements.append("try SBJInvariantCheck.requireText(\(name), minLength: \(minLength), maxLength: \(maxLength), at: keyPath.appending(\\Self.\(name)))")
                 }
-                let integerRange = editorIntegerRange(on: variable)
-                if let integerRange {
+                let integerConstraints = editorIntegerConstraints(on: variable)
+                if let integerRange = integerConstraints.range {
                     invariantStatements.append("try SBJInvariantCheck.requireRange(\(name), \(integerRange), at: keyPath.appending(\\Self.\(name)))")
                 }
+                if let integerMinimum = integerConstraints.min {
+                    invariantStatements.append("try SBJInvariantCheck.requireMinimum(\(name), \(integerMinimum), at: keyPath.appending(\\Self.\(name)))")
+                }
+                let integerRange = integerConstraints.range ?? integerConstraints.min.map { "\($0)...Int.max" }
                 if let numberRange = editorNumberRange(on: variable) {
                     invariantStatements.append("try SBJInvariantCheck.requireRange(\(name), \(numberRange), at: keyPath.appending(\\Self.\(name)))")
                 }
@@ -524,19 +528,22 @@ public struct CodableEditorMacro: MemberMacro, ExtensionMacro {
         return nil
     }
 
-    private static func editorIntegerRange(on variable: VariableDeclSyntax) -> String? {
+    private static func editorIntegerConstraints(on variable: VariableDeclSyntax) -> (range: String?, min: String?) {
         for element in variable.attributes {
             guard case .attribute(let attribute) = element else { continue }
             guard attribute.attributeName.trimmedDescription == "EditorInteger" else { continue }
             guard let rawArguments = attribute.arguments,
                   case .argumentList(let arguments) = rawArguments else {
-                return nil
+                return (nil, nil)
             }
             for argument in arguments where argument.label?.text == "range" {
-                return argument.expression.trimmedDescription
+                return (argument.expression.trimmedDescription, nil)
+            }
+            for argument in arguments where argument.label?.text == "min" {
+                return (nil, argument.expression.trimmedDescription)
             }
         }
-        return nil
+        return (nil, nil)
     }
 
     private static func editorArrayOptions(on variable: VariableDeclSyntax) -> (ordering: String?, title: String?, minCount: String?, maxCount: String?) {

@@ -63,6 +63,11 @@ private struct TestContentLeaf: Codable {
     var text: String = ""
 }
 
+private enum TestPlainScalarEnum: Codable {
+    case first
+    case second
+}
+
 @CodableEditor
 private struct TestGeneratedContent: Codable {
     var scalar: Int = 1
@@ -73,9 +78,9 @@ private struct TestGeneratedContent: Codable {
 }
 
 extension CodableEditorUsageTests {
-    @Test func generatedHasContentDefaultsUnknownMembersToContent() {
-        #expect(TestGeneratedContent().hasContent)
-        #expect(TestGeneratedContent(scalar: 99).hasContent)
+    @Test func generatedHasContentIgnoresDirectNonCheckableScalars() {
+        #expect(!TestGeneratedContent().hasContent)
+        #expect(!TestGeneratedContent(scalar: 99).hasContent)
         #expect(TestGeneratedContent(text: "x").hasContent)
         #expect(!TestGeneratedContent(optionalText: "").hasContent)
         #expect(TestGeneratedContent(optionalText: "x").hasContent)
@@ -83,12 +88,35 @@ extension CodableEditorUsageTests {
         #expect(!TestGeneratedContent(nestedItems: [TestContentLeaf()]).hasContent)
         #expect(TestGeneratedContent(nestedItems: [TestContentLeaf(text: "x")]).hasContent)
     }
+
+    @Test func contentCheckKeepsScalarEditorContentStateNeutral() {
+        #expect(!SBJContentCheck.hasContent(0))
+        #expect(!SBJContentCheck.hasContent(99))
+        #expect(!SBJContentCheck.hasContent(false))
+        #expect(!SBJContentCheck.hasContent(TestPlainScalarEnum.first))
+        #expect(((0 as Any) as? any HasContentCheckable) == nil)
+        #expect(((false as Any) as? any HasContentCheckable) == nil)
+        #expect(((TestPlainScalarEnum.first as Any) as? any HasContentCheckable) == nil)
+    }
+
+    @Test func presenceBearingContainersStillCountNonCheckableScalars() {
+        let noInteger: Int? = nil
+        let integer: Int? = 0
+
+        #expect(!SBJContentCheck.hasContent(noInteger))
+        #expect(SBJContentCheck.hasContent(integer))
+        #expect(!SBJContentCheck.hasContent([Int]()))
+        #expect(SBJContentCheck.hasContent([0]))
+    }
 }
 
 @CodableEditor
 private struct TestValidatedValue: Codable {
     @EditorInteger(range: 1...20)
     var level: Int = 1
+
+    @EditorInteger(min: 0)
+    var count: Int = 0
 
     @EditorText(minLength: 2, maxLength: 5)
     var code: String = "ok"
@@ -109,6 +137,9 @@ extension CodableEditorUsageTests {
 
         #expect(throws: SBJValidationError.self) {
             try TestValidatedValue(level: 21).invariant(at: \TestValidatedValue.self)
+        }
+        #expect(throws: SBJValidationError.self) {
+            try TestValidatedValue(count: -1).invariant(at: \TestValidatedValue.self)
         }
         #expect(throws: SBJValidationError.self) {
             try TestValidatedValue(code: "x").invariant(at: \TestValidatedValue.self)
