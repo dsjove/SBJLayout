@@ -8,6 +8,7 @@ import SwiftUI
 /// application-specific identifiers.
 public struct SBJEditorRegistry {
     private var editors: [ObjectIdentifier: Any] = [:]
+    private var lineItems: [SBJEditorLineItemKey: Any] = [:]
     private var creators: [ObjectIdentifier: Any] = [:]
 
     public init() {}
@@ -26,6 +27,26 @@ public struct SBJEditorRegistry {
     ) {
         editors[ObjectIdentifier(type)] = SBJEditorRegistration<Value> { label, binding, registry in
             AnyView(editor(label, binding, registry))
+        }
+    }
+
+    /// Registers an application-specific presentation override for one exact property.
+    ///
+    /// The callback receives SBJLayout's normal rendered line so applications can
+    /// decorate it without reimplementing the property's built-in editor.
+    @MainActor
+    public mutating func registerLineItem<Root, Value, Content: View>(
+        _ keyPath: WritableKeyPath<Root, Value>,
+        @ViewBuilder lineItem: @escaping @MainActor (
+            _ label: String,
+            _ value: Binding<Value>,
+            _ defaultContent: AnyView,
+            _ registry: SBJEditorRegistry
+        ) -> Content
+    ) {
+        let key = SBJEditorLineItemKey(root: Root.self, keyPath: keyPath)
+        lineItems[key] = SBJEditorLineItemRegistration<Root, Value> { label, binding, defaultContent, registry in
+            AnyView(lineItem(label, binding, defaultContent, registry))
         }
     }
 
@@ -50,6 +71,20 @@ public struct SBJEditorRegistry {
             return nil
         }
         return registration.makeView(label, binding, self)
+    }
+
+    @MainActor
+    func customLineItem<Root, Value>(
+        keyPath: WritableKeyPath<Root, Value>,
+        label: String,
+        binding: Binding<Value>,
+        defaultContent: AnyView
+    ) -> AnyView? {
+        let key = SBJEditorLineItemKey(root: Root.self, keyPath: keyPath)
+        guard let registration = lineItems[key] as? SBJEditorLineItemRegistration<Root, Value> else {
+            return nil
+        }
+        return registration.makeView(label, binding, defaultContent, self)
     }
 
     func createArrayElement<Value>(_ type: Value.Type, existing: [Value]) -> Value? {
@@ -81,6 +116,20 @@ public struct SBJEditorRegistry {
 
 private struct SBJEditorRegistration<Value> {
     let makeView: @MainActor (String, Binding<Value>, SBJEditorRegistry) -> AnyView
+}
+
+private struct SBJEditorLineItemKey: Hashable {
+    let root: ObjectIdentifier
+    let keyPath: AnyKeyPath
+
+    init<Root, Value>(root: Root.Type, keyPath: WritableKeyPath<Root, Value>) {
+        self.root = ObjectIdentifier(root)
+        self.keyPath = keyPath
+    }
+}
+
+private struct SBJEditorLineItemRegistration<Root, Value> {
+    let makeView: @MainActor (String, Binding<Value>, AnyView, SBJEditorRegistry) -> AnyView
 }
 
 private struct SBJCreatorRegistration<Value> {

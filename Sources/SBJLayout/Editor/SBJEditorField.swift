@@ -35,8 +35,9 @@ public struct SBJEditorField<Root: HasContentCheckable> {
                 set: { root.wrappedValue[keyPath: keyPath] = $0 }
             )
             let originalValue = originalRoot.map { $0[keyPath: keyPath] }
-            let content = SBJValueEditor.makeView(
-                label: overrideName ?? name,
+            let label = overrideName ?? name
+            let defaultContent = SBJValueEditor.makeView(
+                label: label,
                 value: value,
                 originalValue: originalValue.map { SBJEditorOriginalValue($0) },
                 registry: registry,
@@ -47,6 +48,12 @@ public struct SBJEditorField<Root: HasContentCheckable> {
                 focusRequest: focusRequest,
                 labelIsUnknown: labelIsUnknown
             )
+            let content = registry.customLineItem(
+                keyPath: keyPath,
+                label: label,
+                binding: value,
+                defaultContent: defaultContent
+            ) ?? defaultContent
             return AnyView(SBJEditorPropertyInfoContainer(content: content, propertyName: name, info: propertyInfo))
         }
         self.collectIssues = { root, path, registry in
