@@ -61,6 +61,32 @@ public struct SBJValidationError: LocalizedError, @unchecked Sendable {
     public var errorDescription: String? { message }
 }
 
+/// App-level convenience helpers for handwritten domain invariants. Validation
+/// ownership, paths, and the standard error type live in SBJLayout.
+public func require(
+    _ condition: @autoclosure () -> Bool,
+    _ keyPath: SBJValidationKeyPath,
+    _ requirement: String
+) throws {
+    try SBJInvariantCheck.require(condition(), at: keyPath, requirement)
+}
+
+public func requireMeaningful(_ value: String, _ keyPath: SBJValidationKeyPath) throws {
+    try require(
+        value.trimmingCharacters(in: .whitespacesAndNewlines).hasContent,
+        keyPath,
+        "must contain non-whitespace text"
+    )
+}
+
+public func requireUnique<T: Hashable>(
+    _ values: [T],
+    _ keyPath: SBJValidationKeyPath,
+    _ requirement: String
+) throws {
+    try require(Set(values).count == values.count, keyPath, requirement)
+}
+
 /// A value that can report whether it contains meaningful content and validate
 /// its own domain invariants.
 public protocol HasContentCheckable {
