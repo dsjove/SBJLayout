@@ -24,19 +24,21 @@ public enum ImageSource: Sendable {
 	public var image: UIImage? {
 		switch self {
 		case .none:
-			nil
+			return nil
 		case .bundled(let name, let bundle):
-			UIImage(named: name, in: bundle, compatibleWith: nil)
+			return UIImage(named: name, in: bundle, compatibleWith: nil)
 		case .system(let name):
-			UIImage(systemName: name)
+			return UIImage(systemName: name)
 		case .file(let url):
-			UIImage(contentsOfFile: url.path)
+			let didAccess = url.startAccessingSecurityScopedResource()
+			defer {
+				if didAccess { url.stopAccessingSecurityScopedResource() }
+			}
+			return UIImage(contentsOfFile: url.path)
 		}
 	}
-}
 
-extension ImageSource: HasContentCheckable {
-	public var hasContent: Bool {
-		self.isEmpty == false
+	public var data: Data? {
+		self.image?.pngData()
 	}
 }
