@@ -7,7 +7,7 @@ import SwiftUI
 /// and use in the same isolation domain also prevents writable key paths from
 /// being transferred into a main-actor closure from a nonisolated context.
 @MainActor
-public struct SBJEditorField<Root> {
+public struct SBJEditorField<Root: HasContentCheckable> {
     public let name: String
     private let makeView: (Binding<Root>, Root?, SBJEditorRegistry, String?, SBJEditorFocusRequest?, Bool) -> AnyView
     private let collectIssues: (Root, [String], SBJEditorRegistry) -> [SBJEditorIssue]
@@ -28,13 +28,14 @@ public struct SBJEditorField<Root> {
     ) {
         self.name = name
         self.validationKeyPath = keyPath
+        let propertyInfo = Root.propertyInfo(for: keyPath)
         self.makeView = { root, originalRoot, registry, overrideName, focusRequest, labelIsUnknown in
             let value = Binding<Value>(
                 get: { root.wrappedValue[keyPath: keyPath] },
                 set: { root.wrappedValue[keyPath: keyPath] = $0 }
             )
             let originalValue = originalRoot.map { $0[keyPath: keyPath] }
-            return SBJValueEditor.makeView(
+            let content = SBJValueEditor.makeView(
                 label: overrideName ?? name,
                 value: value,
                 originalValue: originalValue.map { SBJEditorOriginalValue($0) },
@@ -46,6 +47,7 @@ public struct SBJEditorField<Root> {
                 focusRequest: focusRequest,
                 labelIsUnknown: labelIsUnknown
             )
+            return AnyView(SBJEditorPropertyInfoContainer(content: content, propertyName: name, info: propertyInfo))
         }
         self.collectIssues = { root, path, registry in
             SBJValueEditor.collectIssues(

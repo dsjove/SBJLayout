@@ -530,7 +530,7 @@ enum SBJValueEditor {
             return displayTitle(child.value)
         }
         if let string = value as? String { return string }
-        return SBJEditorLabel.humanize(String(describing: value))
+        return String(describing: value).uncamelCased
     }
 
     @MainActor
@@ -1042,7 +1042,7 @@ private struct SBJArrayEditor<Element: Codable>: View {
         if let string = value as? String {
             return string
         }
-        return SBJEditorLabel.humanize(String(describing: value))
+        return String(describing: value).uncamelCased
     }
 
     private func sortAscending() {

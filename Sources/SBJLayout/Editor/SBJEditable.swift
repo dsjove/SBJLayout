@@ -44,7 +44,7 @@ public extension SBJEditable {
 
     /// Human-readable default name used for nested disclosure groups.
     static var sbjEditorTypeName: String {
-        SBJEditorLabel.humanize(String(describing: Self.self))
+        String(describing: Self.self).uncamelCased
     }
 
     @MainActor
@@ -141,7 +141,7 @@ public protocol SBJEditableEnum: Codable, CaseIterable, Hashable, SBJEditorCreat
 
 public extension SBJEditableEnum {
     var sbjEditorCaseName: String {
-        SBJEditorLabel.humanize(String(describing: self))
+        String(describing: self).uncamelCased
     }
 
     static func sbjCreateEditorValue() -> Self {

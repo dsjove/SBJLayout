@@ -91,10 +91,13 @@ public func requireUnique<T: Hashable>(
 /// its own domain invariants.
 public protocol HasContentCheckable {
     var hasContent: Bool { get }
+    static func propertyInfo<Value>(for keyPath: KeyPath<Self, Value>) -> SBJPropertyInfo?
     func invariant(at keyPath: SBJValidationKeyPath) throws
 }
 
 public extension HasContentCheckable {
+    static func propertyInfo<Value>(for keyPath: KeyPath<Self, Value>) -> SBJPropertyInfo? { nil }
+
     func invariant(at keyPath: SBJValidationKeyPath) throws {}
 
     func invariant<Root>(at keyPath: KeyPath<Root, Self>) throws {

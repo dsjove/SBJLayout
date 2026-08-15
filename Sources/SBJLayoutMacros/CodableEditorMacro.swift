@@ -127,7 +127,7 @@ public struct CodableEditorMacro: MemberMacro, ExtensionMacro {
                 let arrayOrderingArgument = arrayOptions.ordering.map { ", arrayOrdering: \($0)" } ?? ""
                 let arrayTitleArgument = arrayOptions.title.map { ", arrayItemTitleKey: \"\($0)\"" } ?? ""
                 entries.append(
-                    "SBJEditorField<Self>(name: SBJEditorLabel.humanize(\"\(name)\"), \\.\(name)\(textStyleArgument)\(integerRangeArgument)\(arrayOrderingArgument)\(arrayTitleArgument))"
+                    "SBJEditorField<Self>(name: \"\(name)\".uncamelCased, \\.\(name)\(textStyleArgument)\(integerRangeArgument)\(arrayOrderingArgument)\(arrayTitleArgument))"
                 )
             }
         }
@@ -190,14 +190,14 @@ public struct CodableEditorMacro: MemberMacro, ExtensionMacro {
 
     private struct EnumParameter {
         let type: String
-        let fieldName: String
+        let fieldNameExpression: String
         let constructorLabel: String?
         let variableName: String
     }
 
     private struct EnumCaseInfo {
         let caseName: String
-        let displayName: String
+        let displayNameExpression: String
         let parameters: [EnumParameter]
     }
 
@@ -263,18 +263,18 @@ public struct CodableEditorMacro: MemberMacro, ExtensionMacro {
                         semanticName = nil
                     }
 
-                    let fieldName: String
+                    let fieldNameExpression: String
                     if let semanticName {
-                        fieldName = humanize(semanticName)
+                        fieldNameExpression = "\"\(semanticName)\".uncamelCased"
                     } else if count == 1 {
-                        fieldName = "Value"
+                        fieldNameExpression = "\"Value\""
                     } else {
-                        fieldName = "Value \(offset + 1)"
+                        fieldNameExpression = "\"Value \(offset + 1)\""
                     }
 
                     return EnumParameter(
                         type: parameter.type.trimmedDescription,
-                        fieldName: fieldName,
+                        fieldNameExpression: fieldNameExpression,
                         constructorLabel: constructorLabel,
                         variableName: "_sbjValue\(offset)"
                     )
@@ -282,7 +282,7 @@ public struct CodableEditorMacro: MemberMacro, ExtensionMacro {
                 result.append(
                     EnumCaseInfo(
                         caseName: caseName,
-                        displayName: humanize(caseName),
+                        displayNameExpression: "\"\(caseName)\".uncamelCased",
                         parameters: parameters
                     )
                 )
@@ -300,7 +300,7 @@ public struct CodableEditorMacro: MemberMacro, ExtensionMacro {
 
         return """
         SBJEditorEnumCase<Self>(
-            name: \"\(info.displayName)\",
+            name: \(info.displayNameExpression),
             matches: { value in
                 if case \(pattern) = value { return true }
                 return false
@@ -337,7 +337,7 @@ public struct CodableEditorMacro: MemberMacro, ExtensionMacro {
 
         return """
         SBJEditorAssociatedValue<Self>(
-            name: "\(parameter.fieldName)",
+            name: \(parameter.fieldNameExpression),
             get: { root in
                 guard case let \(getPattern) = root else {
                     preconditionFailure("Associated value accessed while enum is in a different case")
@@ -432,31 +432,6 @@ public struct CodableEditorMacro: MemberMacro, ExtensionMacro {
         return ""
     }
 
-    private static func humanize(_ value: String) -> String {
-        guard !value.isEmpty else { return value }
-        var output = ""
-        var previousWasLowerOrDigit = false
-        for character in value {
-            if character == "_" {
-                if !output.hasSuffix(" ") { output.append(" ") }
-                previousWasLowerOrDigit = false
-                continue
-            }
-            let isUpper = character.isUppercase
-            if isUpper && previousWasLowerOrDigit && !output.hasSuffix(" ") {
-                output.append(" ")
-            }
-            output.append(character)
-            previousWasLowerOrDigit = character.isLowercase || character.isNumber
-        }
-        return output
-            .split(separator: " ")
-            .map { word in
-                guard let first = word.first else { return "" }
-                return String(first).uppercased() + word.dropFirst()
-            }
-            .joined(separator: " ")
-    }
 
     private static func editorTextStyle(on variable: VariableDeclSyntax) -> String? {
         for element in variable.attributes {
