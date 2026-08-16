@@ -6,9 +6,9 @@ public struct JCSText: Renderable {
 	public let font: UIFont
 	public let align: Alignment?
 	public let lines: ClosedRange<Int>?
-	private let content: NSMutableAttributedString?
+	private let content: NSAttributedString?
 	private let charMeasure: NSAttributedString?
-// TODO: Bug - do copy-on-write for content member and cache measurement
+// Immutable attributed content preserves JCSText value semantics; render works on a private mutable copy.
 
 	public init(
 		size font: UIFont?,
@@ -85,7 +85,7 @@ public struct JCSText: Renderable {
 		self.lines = lines
 
 		if let text, !text.isEmpty {
-			content = NSMutableAttributedString(string: text, attributes: [
+			content = NSAttributedString(string: text, attributes: [
 				.font: font,
 				.foregroundColor: color,
 			])
@@ -148,10 +148,11 @@ public struct JCSText: Renderable {
 
 	public func render(in allocated: CGRect, measured: CGSize, align: Alignment) {
 		guard let content else { return }
+		let renderedContent = NSMutableAttributedString(attributedString: content)
 		var r = allocated
 		//NSAttributedString has alignment built into the attributes
 		let align = self.align ?? align
-		content.addAttribute(
+		renderedContent.addAttribute(
 			.paragraphStyle,
 			value: {
 				let paragraphStyle = NSMutableParagraphStyle()
@@ -161,7 +162,7 @@ public struct JCSText: Renderable {
 			}(),
 			range: NSRange(
 				location: 0,
-				length: content.length
+				length: renderedContent.length
 			)
 		)
 		//NSAttributedString has no notion of vertical alignment
@@ -169,6 +170,6 @@ public struct JCSText: Renderable {
 			let size = measure(bounds: allocated.size)
 			r = align.apply(size: size, in: allocated).integral
 		}
-		content.draw(with: r, options: [.usesLineFragmentOrigin, .usesFontLeading], context: nil)
+		renderedContent.draw(with: r, options: [.usesLineFragmentOrigin, .usesFontLeading], context: nil)
 	}
 }
