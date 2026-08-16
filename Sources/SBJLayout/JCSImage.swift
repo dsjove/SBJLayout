@@ -2,20 +2,18 @@ import CoreGraphics
 import UIKit
 
 public struct JCSImage: Renderable {
-	public let source: ImageSource
 	public let cornerRadius: CGFloat
 	public let aspect: Aspect
 	public let image: UIImage?
 
 	public init(
-		_ source: ImageSource,
+		_ image: UIImage?,
 		aspect: Aspect = .fit,
 		cornerRadius: CGFloat = 0.0
 	) {
-		self.source = source
 		self.cornerRadius = cornerRadius
 		self.aspect = aspect
-		self.image = source.image
+		self.image = image
 	}
 
 	public var isEmpty: Bool {
