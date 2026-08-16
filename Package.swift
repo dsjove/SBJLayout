@@ -16,25 +16,10 @@ let package = Package(
         ),
     ],
     dependencies: [
-        .package(
-            url: "https://github.com/swiftlang/swift-syntax.git",
-            exact: "604.0.0-prerelease-2026-06-05"
-        ),
     ],
     targets: [
-        .macro(
-            name: "SBJLayoutMacros",
-            dependencies: [
-                .product(name: "SwiftCompilerPlugin", package: "swift-syntax"),
-                .product(name: "SwiftDiagnostics", package: "swift-syntax"),
-                .product(name: "SwiftSyntax", package: "swift-syntax"),
-                .product(name: "SwiftSyntaxBuilder", package: "swift-syntax"),
-                .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
-            ]
-        ),
         .target(
             name: "SBJLayout",
-            dependencies: ["SBJLayoutMacros"],
             swiftSettings: [
                 .enableUpcomingFeature("ApproachableConcurrency"),
                 .defaultIsolation(nil),
