@@ -2,6 +2,20 @@ import Foundation
 import CoreGraphics
 
 public class Pagination {
+	private struct MeasuredGroup {
+		let id: Int
+		var size: CGSize
+		var behavior: PaginationBehavior
+		var spacingBefore: CGFloat
+	}
+
+	private struct PaginationUnit {
+		var ids: [Int]
+		var height: CGFloat
+		var spacingBefore: CGFloat
+		var forcePage: Bool
+	}
+
 	public let size: PageSize
 	public let margin: Insets
 	public let landscape: Bool
@@ -15,10 +29,8 @@ public class Pagination {
 	public var pageNumber: Int { pages.count }
 
 	private var groupId: Int = 0
-	private var hasMeasured: Bool = false
-	private var measured: Set<Int> = []
+	private var groups: [Int: MeasuredGroup] = [:]
 	private var pages: Set<Int> = []
-	private var measurePageOffsetY: CGFloat = 0
 	private var renderPageOffsetY: CGFloat = 0
 
 	public init(
@@ -34,74 +46,88 @@ public class Pagination {
 		self.landscape = landscape
 		self.estimatedPageCountMax = estimatedPageCountMax
 		self.paging = paging
-		self.measurePageOffsetY = -1
 		let printableRect: CGRect = size.rect(landscape: landscape, margin: margin)
 		self.contentRect = insets.apply(to: printableRect)
 	}
 
 	public func registerGroup() -> Int {
 		let id = groupId
-//print("Group\(id) Register")
 		groupId += 1
 		return id
 	}
 
 	func measuredGroup(_ id: Int, _ size: CGSize, spacingBefore: CGFloat = 0) {
-		measuredGroup(id, size, pageBreak: false, spacingBefore: spacingBefore)
+		measuredGroup(id, size, behavior: .flow, spacingBefore: spacingBefore)
 	}
 
-	public func measuredGroup(_ id: Int, _ size: CGSize, pageBreak: Bool, spacingBefore: CGFloat) {
-		let height = size.height
-//print("Group\(id ?? -1) Measured")
-		guard height > 0, height.isFinite else {
-//print("Group\(id ?? -1): Invalid Height -> \(pages.count)")
+	public func measuredGroup(
+		_ id: Int,
+		_ size: CGSize,
+		behavior: PaginationBehavior,
+		spacingBefore: CGFloat
+	) {
+		guard size.height > 0, size.height.isFinite else {
+			groups.removeValue(forKey: id)
+			recalculatePages()
 			return
+		}
+
+		groups[id] = MeasuredGroup(
+			id: id,
+			size: size,
+			behavior: behavior,
+			spacingBefore: max(0, spacingBefore)
+		)
+		recalculatePages()
+	}
+
+	private func recalculatePages() {
+		pages.removeAll(keepingCapacity: true)
+		let measured = groups.values.sorted { $0.id < $1.id }
+		guard !measured.isEmpty else { return }
+
+		var units: [PaginationUnit] = []
+		for group in measured {
+			if group.behavior == .keepWith, !units.isEmpty {
+				units[units.index(before: units.endIndex)].ids.append(group.id)
+				units[units.index(before: units.endIndex)].height += group.spacingBefore + group.size.height
+			} else {
+				units.append(PaginationUnit(
+					ids: [group.id],
+					height: group.size.height,
+					spacingBefore: group.spacingBefore,
+					forcePage: group.behavior == .page
+				))
+			}
 		}
 
 		let pageHeight = contentRect.height
+		var pageOffsetY: CGFloat = 0
 
-		let newPage = {
-			self.measurePageOffsetY = height
-			self.pages.insert(id)
+		for (index, unit) in units.enumerated() {
+			let firstId = unit.ids[0]
+			let startsPage: Bool
+			if index == 0 {
+				startsPage = true
+			} else if unit.forcePage {
+				startsPage = true
+			} else if unit.height > pageHeight {
+				startsPage = true
+			} else {
+				startsPage = pageOffsetY + unit.spacingBefore + unit.height > pageHeight
+			}
+
+			if startsPage {
+				pages.insert(firstId)
+				pageOffsetY = unit.height
+			} else {
+				pageOffsetY += unit.spacingBefore + unit.height
+			}
 		}
-
-		if !hasMeasured {
-			hasMeasured = true
-			newPage()
-//print("Page Height: \(pageHeight)")
-//print("Group\(id): FirstMeasure -> \(pages.count) \(measurePageOffsetY)")
-			return
-		}
-
-		if pageBreak {
-			newPage()
-//print("Group\(id): Forced Page Break -> \(pages.count) - \(measurePageOffsetY)")
-			return
-		}
-
-		//TODO: Feature - support splitting
-		//TODO: Feature - variable content size for best fit
-		if height > pageHeight {
-			newPage()
-//print("Group\(id): Too Tall -> \(pages.count) \(measurePageOffsetY)")
-			return
-		}
-
-		let spacing = max(0, spacingBefore)
-		if measurePageOffsetY + spacing + height > pageHeight {
-			newPage()
-//print("Group\(id): Does Not Fit -> \(pages.count) - \(measurePageOffsetY)")
-			return
-		}
-
-		measurePageOffsetY += spacing + height
-//print("Group\(id): Fits -> \(pages.count) \(measurePageOffsetY)")
 	}
 
 	public func renderingGroup(_ id: Int, from origin: CGPoint) -> CGPoint {
-//print("Group\(id) Render")
 		if pages.contains(id) {
-//print("   Paging")
 			paging?(self)
 			renderPageOffsetY = origin.y - contentRect.origin.y
 		}

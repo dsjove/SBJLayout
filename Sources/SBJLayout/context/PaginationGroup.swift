@@ -1,20 +1,26 @@
 import Foundation
 import CoreGraphics
 
+public enum PaginationBehavior: String, Codable, CaseIterable, Sendable {
+	case page
+	case keepWith
+	case flow
+}
+
 public struct PaginationGroup: Renderable  {
 	var paginationId: Int
-	let pageBreak: Bool
+	let behavior: PaginationBehavior
 	let groupGap: CGFloat
 	let grid: Grid
 
 	public init(
-		pageBreak: Bool,
+		behavior: PaginationBehavior = .flow,
 		groupGap: CGFloat,
 		@RenderableBuilder
 		content: () -> Renderables,
 	) {
 		self.paginationId = Self.pagination.registerGroup()
-		self.pageBreak = pageBreak
+		self.behavior = behavior
 		self.groupGap = groupGap
 		self.grid = Grid(
 			vertFlow: .init(.fill()),
@@ -26,7 +32,12 @@ public struct PaginationGroup: Renderable  {
 
 	public func measure(bounds: CGSize) -> CGSize {
 		let size = self.grid.measure(bounds: bounds)
-		Self.pagination.measuredGroup(paginationId, size, pageBreak: pageBreak, spacingBefore: groupGap)
+		Self.pagination.measuredGroup(
+			paginationId,
+			size,
+			behavior: behavior,
+			spacingBefore: groupGap
+		)
 		return size
 	}
 
