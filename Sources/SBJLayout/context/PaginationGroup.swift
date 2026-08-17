@@ -10,6 +10,7 @@ public struct PaginationGroup: Renderable  {
 	public init(
 		pageBreak: Bool,
 		groupGap: CGFloat,
+		@RenderableBuilder
 		content: () -> Renderables,
 	) {
 		self.paginationId = Self.pagination.registerGroup()
