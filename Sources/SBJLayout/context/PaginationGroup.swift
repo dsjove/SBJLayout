@@ -5,6 +5,14 @@ public enum PaginationBehavior: String, Codable, CaseIterable, Sendable {
 	case page
 	case keepWith
 	case flow
+	
+	public var displayName: String {
+		switch self {
+		case .page: "Page Break"
+		case .keepWith: "Keep With Above"
+		case .flow: "Flow"
+		}
+	}
 }
 
 public struct PaginationGroup: Renderable  {

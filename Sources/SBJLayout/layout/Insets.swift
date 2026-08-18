@@ -1,6 +1,6 @@
 import CoreGraphics
 
-public struct Insets: Sendable, Codable, CustomStringConvertible {
+public struct Insets: Sendable, Codable, Equatable, CustomStringConvertible {
 	public let left: CGFloat
 	public let right: CGFloat
 	public let top: CGFloat
