@@ -2,25 +2,19 @@ import Foundation
 import PDFKit
 
 public struct PDFGenerator {
-	public let pageSize: PageSize
-	public let margin: Insets
-	public let landscape: Bool
+	public let pageLayout: PageLayout
 
 	public init(
-		pageSize: PageSize = PageSize.letter,
-		margin: Insets = .init(dx: 18.0, dy: 18.0),
-		landscape: Bool = false
+		pageLayout: PageLayout = .init()
 	) {
-		self.pageSize = pageSize
-		self.margin = margin
-		self.landscape = landscape
+		self.pageLayout = pageLayout
 	}
 
 	public func render(_ content: Renderable, jargon: Jargon = .standard, insets: Insets = .zero, _ paging: ((Pagination) -> ())? = nil) -> Data {
-		let pageRect = pageSize.rect(landscape: landscape, margin: .zero)
+		let pageRect = pageLayout.pageSize.rect(landscape: pageLayout.landscape, margin: .zero)
 		let renderer = UIGraphicsPDFRenderer(bounds: pageRect)
 		return renderer.pdfData { context in
-			let pagination = Pagination(size: pageSize, margin: margin, insets: insets, landscape: landscape) {
+			let pagination = Pagination(layout: pageLayout, insets: insets) {
 				context.beginPage()
 				paging?($0)
 			}

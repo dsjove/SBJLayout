@@ -16,14 +16,12 @@ public class Pagination {
 		var forcePage: Bool
 	}
 
-	public let size: PageSize
-	public let margin: Insets
-	public let landscape: Bool
+	public let layout: PageLayout
 	public let estimatedPageCountMax: Int?
 	public let paging: ((Pagination) -> ())?
 
-	public var pageRect: CGRect { size.rect(landscape: landscape, margin: .zero) }
-	public var printableRect: CGRect { size.rect(landscape: landscape, margin: margin) }
+	public var pageRect: CGRect { layout.pageRect }
+	public var printableRect: CGRect { layout.printableRect }
 	public let contentRect: CGRect
 
 	public var pageNumber: Int { pages.count }
@@ -34,20 +32,15 @@ public class Pagination {
 	private var renderPageOffsetY: CGFloat = 0
 
 	public init(
-		size: PageSize = PageSize.unbounded,
-		margin: Insets = .zero,
+		layout: PageLayout = .init(),
 		insets: Insets = .zero,
-		landscape: Bool = false,
 		estimatedPageCountMax: Int? = nil,
 		paging: ((Pagination) -> ())? = nil
 	) {
-		self.size = size
-		self.margin = margin
-		self.landscape = landscape
+		self.layout = layout
 		self.estimatedPageCountMax = estimatedPageCountMax
 		self.paging = paging
-		let printableRect: CGRect = size.rect(landscape: landscape, margin: margin)
-		self.contentRect = insets.apply(to: printableRect)
+		self.contentRect = insets.apply(to: layout.printableRect)
 	}
 
 	public func registerGroup() -> Int {
