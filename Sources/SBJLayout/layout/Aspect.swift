@@ -22,6 +22,10 @@ public enum Aspect: Int, Sendable, Codable, CustomStringConvertible {
 	public func apply(size: CGSize, in bounds: CGSize) -> CGSize {
 		switch self {
 		case .fit, .fill:
+			guard size.width > 0, size.height > 0,
+				size.width.isFinite, size.height.isFinite else {
+				return .zero
+			}
 			let widthUnbounded = bounds.width.isUnbounded
 			let heightUnbounded = bounds.height.isUnbounded
 			if widthUnbounded && heightUnbounded {

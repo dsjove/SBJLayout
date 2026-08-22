@@ -5,7 +5,10 @@ import Testing
 @Suite("Pagination behavior")
 struct PaginationTests {
 	private func pagination() -> Pagination {
-		Pagination(size: .custom(width: 100, height: 100))
+		Pagination(layout: .init(
+			pageSize: .custom(width: 100, height: 100),
+			margins: .zero
+		))
 	}
 
 	@Test("Keep-with moves the preceding group with the current group")

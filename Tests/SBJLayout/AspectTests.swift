@@ -49,4 +49,14 @@ struct AspectTests {
 		#expect(Aspect.original.apply(size: wide, in: .zero) == wide)
 		#expect(Aspect.original.apply(size: wide, in: .unbounded) == wide)
 	}
+	@Test("Fit and fill return zero for empty or invalid source geometry")
+	func invalidSourceGeometry() {
+		for aspect in [Aspect.fit, .fill] {
+			#expect(aspect.apply(size: .zero, in: square) == .zero)
+			#expect(aspect.apply(size: CGSize(width: 0, height: 100), in: square) == .zero)
+			#expect(aspect.apply(size: CGSize(width: 100, height: 0), in: square) == .zero)
+			#expect(aspect.apply(size: CGSize(width: -.infinity, height: 100), in: square) == .zero)
+		}
+	}
+
 }

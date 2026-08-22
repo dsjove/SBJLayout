@@ -25,6 +25,7 @@ public struct JCSRect {
 		fill.setFill()
 		stroke.setStroke()
 		let path = UIBezierPath(borderRect: rect, cornerRadius: radius)
+		path.lineWidth = lineWidth
 		path.fill()
 		path.stroke()
 		return rect
