@@ -7,13 +7,16 @@ struct GridLayoutTests {
 	private final class MeasuringElement: TrackElement {
 		private(set) var measuredBounds: [CGSize] = []
 		let measureBlock: (CGSize) -> CGSize
+		let measurementAxes: MeasurementAxes
 
-		init(size: CGSize) {
+		init(size: CGSize, measurementAxes: MeasurementAxes = .all) {
 			self.measureBlock = { _ in size }
+			self.measurementAxes = measurementAxes
 		}
 
-		init(measure: @escaping (CGSize) -> CGSize) {
+		init(measurementAxes: MeasurementAxes = .all, measure: @escaping (CGSize) -> CGSize) {
 			self.measureBlock = measure
+			self.measurementAxes = measurementAxes
 		}
 
 		func measure(bounds: CGSize) -> CGSize {
@@ -105,6 +108,44 @@ struct GridLayoutTests {
 				CGSize(width: 150, height: .unbounded)
 			]
 		)
+	}
+
+	@Test("Height-excluded cells do not drive intrinsic row height")
+	func heightExcludedCellDoesNotDriveRowHeight() {
+		let decorative = MeasuringElement(
+			size: CGSize(width: 80, height: 200),
+			measurementAxes: .width
+		)
+		let content = MeasuringElement(size: CGSize(width: 40, height: 30))
+		let layout = GridLayout(
+			columns: .init([Track(.fixed(100)), Track(.fixed(100))]),
+			cells: [decorative, content],
+			arrangement: .tight
+		)
+
+		let definition = layout.measure(bounds: .unbounded)
+
+		#expect(definition.rows.lengths == [30])
+		#expect(definition.measured[0].height == 200)
+		#expect(decorative.measureCount == 1)
+	}
+
+	@Test("Width-excluded cells do not drive intrinsic column width")
+	func widthExcludedCellDoesNotDriveColumnWidth() {
+		let decorative = MeasuringElement(
+			size: CGSize(width: 200, height: 20),
+			measurementAxes: .height
+		)
+		let layout = GridLayout(
+			columns: .init([Track(.intrinsic())]),
+			cells: [decorative],
+			arrangement: .tight
+		)
+
+		let definition = layout.measure(bounds: .unbounded)
+
+		#expect(definition.columns.lengths == [0])
+		#expect(decorative.measureCount == 0)
 	}
 
 	@Test("Row calculation reuses cached cell measurements")

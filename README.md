@@ -10,7 +10,7 @@ The core model is deliberately small:
 - `Insets`, `Alignment`, `Aspect`, and `AspectRatio` provide reusable geometry behavior.
 - `Pagination` and `PaginationGroup` split measured content into pages.
 - `PDFGenerator` renders a `Renderable` tree into PDF data.
-- `JCSText`, `JCSImage`, `JCSRect`, and `JCSLine` provide basic UIKit/Core Graphics content and drawing wrappers.
+- `JCSText`, `LayoutImage`, `JCSRect`, and `JCSLine` provide basic UIKit/Core Graphics content and drawing wrappers.
 - `Jargon` supplies document-specific words and typed value formatters through the render environment.
 
 SBJLayout currently targets **iOS 17+** and requires **Swift 6.4**.
@@ -51,7 +51,7 @@ Convenience initializers cover common shapes:
 - `Grid(vertFlow:rows:...)` creates a single-column vertical flow.
 - `Grid(table:columnMap:header:leader:rows:...)` builds table-oriented columns and optional header/leader aggregation behavior.
 
-Grid can also wrap resolved tracks against a bounded primary axis with `wrapping: .horizontal` or `wrapping: .vertical`. Wrapping changes only rendered geometry and intrinsic grid size; logical cell indices and row/column coordinates remain unchanged. A visible `.fill` track consumes the remainder of its current band and terminates that band. An unbounded primary axis does not wrap.
+Grid can also wrap resolved tracks against a bounded primary axis with `wrapping: .horizontal` or `wrapping: .vertical`. Wrapping changes only rendered geometry and intrinsic grid size; logical cell indices and row/column coordinates remain unchanged. A visible `.fill` track consumes the remainder of its current band and terminates that band. A track with `breakAfter: true` terminates its band without consuming the remaining space. An unbounded primary axis does not wrap.
 
 ### Track sizes
 
@@ -94,7 +94,7 @@ Cells beyond a row factory's `maxCount` are intentionally excluded. Minimum row 
 
 `JCSText` supports verbatim text, jargon lookup, typed jargon formatting, minimum character width, line-height constraints, and horizontal/vertical alignment.
 
-`JCSImage` measures and renders a `UIImage` with `Aspect` behavior and optional rounded clipping. A nil image measures as zero for fit/fill layouts.
+`LayoutImage` measures and renders a `UIImage` with `Aspect` behavior and optional rounded clipping. A nil image measures as zero for fit/fill layouts.
 
 `JCSRect` and `JCSLine` are lightweight drawing helpers. Their configured stroke widths are applied when drawing.
 
@@ -149,3 +149,11 @@ Run with a Swift 6.4 toolchain:
 ```sh
 swift test
 ```
+
+### Decorative panel images
+
+`Panel` accepts an optional `backgroundImage: LayoutImage` and alignment. The image is drawn after the panel's normal background and before its content, clipped to the panel rectangle. Background images are decorative: `Panel.measure(bounds:)` never consults them, so adding or changing a background cannot alter grid sizing or pagination.
+
+### Measurement participation
+
+Every `TrackElement` exposes `measurementAxes` (default `.all`). Renderables can use `contributesToMeasurement(_:)` to opt out of intrinsic aggregation on one or both axes while still being measured and rendered normally. For example, an image that should share a row's resolved height without driving that height can use `.contributesToMeasurement(.width)`.

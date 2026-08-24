@@ -143,6 +143,7 @@ public class TrackLayout {
 				guard length > 0 else {
 					lengths[index] = 0
 					offsets[index] = position
+					if track.breakAfter && bandHasVisibleTrack { finishBand() }
 					continue
 				}
 
@@ -162,6 +163,7 @@ public class TrackLayout {
 				position += length
 				previousVisibleIndex = index
 				bandHasVisibleTrack = true
+				if track.breakAfter { finishBand() }
 			}
 		}
 

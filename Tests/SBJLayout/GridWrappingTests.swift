@@ -232,4 +232,48 @@ struct GridWrappingTests {
 		#expect(definition.allocatedRect(column: 3, row: 0) == CGRect(x: 40, y: 25, width: 40, height: 40))
 	}
 
+	@Test("Explicit horizontal break ends a band without filling it")
+	func explicitHorizontalBreakEndsBand() {
+		let layout = GridLayout(
+			columns: .init([
+				Track(.fixed(30), breakAfter: true),
+				Track(.fixed(20)),
+				Track(.fixed(25))
+			]),
+			rows: .init(row: Track(.fixed(10))),
+			cells: (0..<3).map { _ in Element() },
+			arrangement: .tight,
+			wrapping: .horizontal
+		)
+
+		let definition = layout.measure(bounds: CGSize(width: 100, height: 200))
+		#expect(definition.columns.lengths == [30, 20, 25])
+		#expect(definition.size == CGSize(width: 45, height: 20))
+		#expect(definition.allocatedRect(column: 0, row: 0) == CGRect(x: 0, y: 0, width: 30, height: 10))
+		#expect(definition.allocatedRect(column: 1, row: 0) == CGRect(x: 0, y: 10, width: 20, height: 10))
+		#expect(definition.allocatedRect(column: 2, row: 0) == CGRect(x: 20, y: 10, width: 25, height: 10))
+	}
+
+	@Test("Explicit vertical break ends a band without filling it")
+	func explicitVerticalBreakEndsBand() {
+		let layout = GridLayout(
+			columns: .init([Track(.fixed(20))]),
+			rows: .init([
+				Track(.fixed(30), breakAfter: true),
+				Track(.fixed(20)),
+				Track(.fixed(25))
+			]),
+			cells: (0..<3).map { _ in Element() },
+			arrangement: .tight,
+			wrapping: .vertical
+		)
+
+		let definition = layout.measure(bounds: CGSize(width: 200, height: 100))
+		#expect(definition.rows.lengths == [30, 20, 25])
+		#expect(definition.size == CGSize(width: 40, height: 45))
+		#expect(definition.allocatedRect(column: 0, row: 0) == CGRect(x: 0, y: 0, width: 20, height: 30))
+		#expect(definition.allocatedRect(column: 0, row: 1) == CGRect(x: 20, y: 0, width: 20, height: 20))
+		#expect(definition.allocatedRect(column: 0, row: 2) == CGRect(x: 20, y: 20, width: 20, height: 25))
+	}
+
 }

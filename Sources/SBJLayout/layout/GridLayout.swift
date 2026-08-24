@@ -121,6 +121,7 @@ public final class GridLayout<Element: TrackElement> {
 		var candidates: [CGFloat] = []
 		candidates.reserveCapacity(definition.rowCount)
 		definition.forEachCell(inColumn: column) { index in
+			guard definition.cells[index].measurementAxes.contains(.width) else { return }
 			candidates.append(
 				measureElement(
 					at: index,
@@ -169,6 +170,7 @@ public final class GridLayout<Element: TrackElement> {
 			}
 			let index = definition.cellIdx(column, row)
 			guard index < definition.cellCount else { continue }
+			guard definition.cells[index].measurementAxes.contains(.height) else { continue }
 			if let candidate = measurements[index]?.size.height {
 				candidates.append(candidate)
 			}

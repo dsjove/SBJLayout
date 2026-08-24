@@ -42,6 +42,32 @@ public extension Renderable {
 	}
 }
 
+public struct MeasurementConstrainedRenderable<Content: Renderable>: Renderable {
+	public let content: Content
+	public let measurementAxes: MeasurementAxes
+
+	public init(_ content: Content, axes: MeasurementAxes) {
+		self.content = content
+		self.measurementAxes = axes
+	}
+
+	public func measure(bounds: CGSize) -> CGSize {
+		content.measure(bounds: bounds)
+	}
+
+	public func render(in allocated: CGRect, measured: CGSize, align: Alignment) {
+		content.render(in: allocated, measured: measured, align: align)
+	}
+}
+
+public extension Renderable {
+	/// Keeps normal measurement/rendering behavior while limiting which intrinsic
+	/// grid track axes this renderable can drive.
+	func contributesToMeasurement(_ axes: MeasurementAxes) -> MeasurementConstrainedRenderable<Self> {
+		.init(self, axes: axes)
+	}
+}
+
 public struct EmptyRenderable: Renderable {
 	public let size: CGSize
 

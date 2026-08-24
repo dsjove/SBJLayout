@@ -1,7 +1,12 @@
 import CoreGraphics
 import UIKit
 
-public struct JCSImage: Renderable {
+/// A rendered image whose geometry is resolved inside an allocated layout rect.
+///
+/// When used as a `Panel.backgroundImage`, the panel deliberately does not
+/// consult `measure(bounds:)`; the image is decorative and paints only after
+/// the panel's layout has been resolved.
+public struct LayoutImage: Renderable {
 	public let cornerRadius: CGFloat
 	public let aspect: Aspect
 	public let image: UIImage?
