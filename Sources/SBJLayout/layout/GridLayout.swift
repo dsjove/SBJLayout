@@ -23,13 +23,15 @@ public final class GridLayout<Element: TrackElement> {
 		columns: TrackFactory,
 		rows: TrackFactory = .init(),
 		cells: [Element],
-		arrangement: TrackArrangement = .gaps
+		arrangement: TrackArrangement = .gaps,
+		wrapping: GridWrapping = .none
 	) {
 		let definition = Definition(
 			columns: columns,
 			rows: rows,
 			cells: cells,
-			arrangement: arrangement
+			arrangement: arrangement,
+			wrapping: wrapping
 		)
 		self.definition = definition
 		self.columns = definition.columnLayout
@@ -38,26 +40,81 @@ public final class GridLayout<Element: TrackElement> {
 	}
 
 	public func measure(bounds: CGSize) -> Definition {
-		columns.apply(
-			available: bounds.width,
-			intrinsic: intrinsicColumnWidth
-		)
+		var wrappedBands: [Int] = []
+		var wrappedBandSizes: [CGFloat] = []
+		var wrappedCrossMetrics: [TrackMetrics] = []
+		var wrappedCrossOffsets: [CGFloat] = []
+
+		switch definition.wrapping {
+		case .horizontal:
+			let wrapped = columns.applyWrapped(
+				available: bounds.width,
+				intrinsic: intrinsicColumnWidth
+			)
+			wrappedBands = wrapped.bands
+			wrappedBandSizes = wrapped.bandSizes
+		case .vertical, .none:
+			columns.apply(
+				available: bounds.width,
+				intrinsic: intrinsicColumnWidth
+			)
+		}
+
 		let revisionBeforeResolvedMeasurement = measurementRevision
 		measureElementsForResolvedColumns()
 		if measurementRevision != revisionBeforeResolvedMeasurement {
 			rows.invalidate()
 		}
-		rows.apply(
-			available: bounds.height,
-			intrinsic: intrinsicRowHeight
-		)
+
+		switch definition.wrapping {
+		case .vertical:
+			let wrapped = rows.applyWrapped(
+				available: bounds.height,
+				intrinsic: intrinsicRowHeight
+			)
+			wrappedBands = wrapped.bands
+			wrappedBandSizes = wrapped.bandSizes
+		case .horizontal, .none:
+			rows.apply(
+				available: bounds.height,
+				intrinsic: intrinsicRowHeight
+			)
+		}
+
+		if definition.wrapping == .horizontal, !wrappedBandSizes.isEmpty {
+			var offset: CGFloat = 0
+			for band in wrappedBandSizes.indices {
+				let bandRows = definition.rowLayout
+				bandRows.apply(
+					available: bounds.height,
+					intrinsic: { [self] row, track, bound in
+						intrinsicRowHeight(row, track: track, bound, horizontalBand: band, wrappedBands: wrappedBands)
+					}
+				)
+				wrappedCrossOffsets.append(offset)
+				wrappedCrossMetrics.append(bandRows.metrics)
+				offset += bandRows.size + trailingGap(in: bandRows.metrics)
+			}
+		}
+
 		definition = definition.resolving(
 			bounds: bounds,
 			columns: columns.metrics,
 			rows: rows.metrics,
-			measured: measurements.map { $0?.size ?? .zero }
+			measured: measurements.map { $0?.size ?? .zero },
+			wrappedBands: wrappedBands,
+			wrappedBandSizes: wrappedBandSizes,
+			wrappedCrossMetrics: wrappedCrossMetrics,
+			wrappedCrossOffsets: wrappedCrossOffsets
 		)
 		return definition
+	}
+
+	func resolvedDefinition(for measured: CGSize) -> Definition {
+		if definition.bounds != nil && definition.size == measured {
+			return definition
+		}
+		return measure(bounds: measured)
 	}
 
 	private func intrinsicColumnWidth(_ column: Int, _ track: Track, _ bound: CGFloat) -> CGFloat {
@@ -94,14 +151,37 @@ public final class GridLayout<Element: TrackElement> {
 	}
 
 	private func intrinsicRowHeight(_ row: Int, track: Track, _ bound: CGFloat) -> CGFloat {
+		intrinsicRowHeight(row, track: track, bound, horizontalBand: nil, wrappedBands: [])
+	}
+
+	private func intrinsicRowHeight(
+		_ row: Int,
+		track: Track,
+		_ bound: CGFloat,
+		horizontalBand: Int?,
+		wrappedBands: [Int]
+	) -> CGFloat {
 		var candidates: [CGFloat] = []
 		candidates.reserveCapacity(definition.columnCount)
-		definition.forEachCell(inRow: row) { index in
+		for column in 0..<definition.columnCount {
+			if let horizontalBand {
+				guard wrappedBands.indices.contains(column), wrappedBands[column] == horizontalBand else { continue }
+			}
+			let index = definition.cellIdx(column, row)
+			guard index < definition.cellCount else { continue }
 			if let candidate = measurements[index]?.size.height {
 				candidates.append(candidate)
 			}
 		}
 		return track.aggregate(candidates) ?? 0
+	}
+
+	private func trailingGap(in metrics: TrackMetrics) -> CGFloat {
+		guard definition.arrangement == .gaps else { return 0 }
+		for index in metrics.tracks.indices.reversed() where metrics.lengths[index] > 0 {
+			return max(metrics.tracks[index].gap, 0)
+		}
+		return 0
 	}
 
 	private func canReuseIntrinsicMeasurement(at index: Int, resolvedWidth: CGFloat) -> Bool {

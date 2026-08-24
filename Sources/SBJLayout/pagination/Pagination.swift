@@ -7,6 +7,16 @@ public class Pagination {
 		var size: CGSize
 		var behavior: PaginationBehavior
 		var spacingBefore: CGFloat
+		var terminatesLine: Bool
+	}
+
+	private struct PaginationLine {
+		var ids: [Int]
+		var width: CGFloat
+		var height: CGFloat
+		var spacingBefore: CGFloat
+		var forcePage: Bool
+		var keepWithPrevious: Bool
 	}
 
 	private struct PaginationUnit {
@@ -50,14 +60,21 @@ public class Pagination {
 	}
 
 	func measuredGroup(_ id: Int, _ size: CGSize, spacingBefore: CGFloat = 0) {
-		measuredGroup(id, size, behavior: .flow, spacingBefore: spacingBefore)
+		measuredGroup(
+			id,
+			size,
+			behavior: .flow,
+			spacingBefore: spacingBefore,
+			terminatesLine: true
+		)
 	}
 
 	public func measuredGroup(
 		_ id: Int,
 		_ size: CGSize,
 		behavior: PaginationBehavior,
-		spacingBefore: CGFloat
+		spacingBefore: CGFloat,
+		terminatesLine: Bool = true
 	) {
 		guard size.height > 0, size.height.isFinite else {
 			groups.removeValue(forKey: id)
@@ -69,7 +86,8 @@ public class Pagination {
 			id: id,
 			size: size,
 			behavior: behavior,
-			spacingBefore: max(0, spacingBefore)
+			spacingBefore: max(0, spacingBefore),
+			terminatesLine: terminatesLine
 		)
 		recalculatePages()
 	}
@@ -79,17 +97,19 @@ public class Pagination {
 		let measured = groups.values.sorted { $0.id < $1.id }
 		guard !measured.isEmpty else { return }
 
+		let lines = paginationLines(from: measured)
 		var units: [PaginationUnit] = []
-		for group in measured {
-			if group.behavior == .keepWith, !units.isEmpty {
-				units[units.index(before: units.endIndex)].ids.append(group.id)
-				units[units.index(before: units.endIndex)].height += group.spacingBefore + group.size.height
+		for line in lines {
+			if line.keepWithPrevious, !line.forcePage, !units.isEmpty {
+				let index = units.index(before: units.endIndex)
+				units[index].ids.append(contentsOf: line.ids)
+				units[index].height += line.spacingBefore + line.height
 			} else {
 				units.append(PaginationUnit(
-					ids: [group.id],
-					height: group.size.height,
-					spacingBefore: group.spacingBefore,
-					forcePage: group.behavior == .page
+					ids: line.ids,
+					height: line.height,
+					spacingBefore: line.spacingBefore,
+					forcePage: line.forcePage
 				))
 			}
 		}
@@ -119,13 +139,61 @@ public class Pagination {
 		}
 	}
 
+	private func paginationLines(from groups: [MeasuredGroup]) -> [PaginationLine] {
+		let availableWidth = contentRect.width
+		var lines: [PaginationLine] = []
+		var current: PaginationLine?
+
+		func finishLine() {
+			guard let line = current, !line.ids.isEmpty else { return }
+			lines.append(line)
+			current = nil
+		}
+
+		for group in groups {
+			if group.behavior == .page {
+				finishLine()
+			}
+
+			if let line = current {
+				let gap = group.spacingBefore
+				if line.width + gap + group.size.width > availableWidth {
+					finishLine()
+				}
+			}
+
+			if current == nil {
+				current = PaginationLine(
+					ids: [],
+					width: 0,
+					height: 0,
+					spacingBefore: group.spacingBefore,
+					forcePage: group.behavior == .page,
+					keepWithPrevious: group.behavior == .keepWith
+				)
+			}
+
+			let gap = current!.ids.isEmpty ? 0 : group.spacingBefore
+			current!.ids.append(group.id)
+			current!.width += gap + group.size.width
+			current!.height = max(current!.height, group.size.height)
+
+			if group.terminatesLine {
+				finishLine()
+			}
+		}
+
+		finishLine()
+		return lines
+	}
+
 	public func renderingGroup(_ id: Int, from origin: CGPoint) -> CGPoint {
 		if pages.contains(id) {
 			paging?(self)
 			renderPageOffsetY = origin.y - contentRect.origin.y
 		}
 		return CGPoint(
-			x: contentRect.origin.x,
+			x: origin.x + (contentRect.origin.x - printableRect.origin.x),
 			y: origin.y - renderPageOffsetY
 		)
 	}

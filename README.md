@@ -51,6 +51,8 @@ Convenience initializers cover common shapes:
 - `Grid(vertFlow:rows:...)` creates a single-column vertical flow.
 - `Grid(table:columnMap:header:leader:rows:...)` builds table-oriented columns and optional header/leader aggregation behavior.
 
+Grid can also wrap resolved tracks against a bounded primary axis with `wrapping: .horizontal` or `wrapping: .vertical`. Wrapping changes only rendered geometry and intrinsic grid size; logical cell indices and row/column coordinates remain unchanged. A visible `.fill` track consumes the remainder of its current band and terminates that band. An unbounded primary axis does not wrap.
+
 ### Track sizes
 
 `TrackSize` supports:

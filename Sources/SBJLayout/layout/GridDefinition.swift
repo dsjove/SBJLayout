@@ -26,28 +26,39 @@ public struct GridDefinition<Cell: TrackElement> {
 	public let rowFactory: TrackFactory
 	public let cells: [Cell]
 	public let arrangement: TrackArrangement
+	public let wrapping: GridWrapping
 
 	// Resolved layout snapshot.
 	public let columns: TrackMetrics
 	public let rows: TrackMetrics
 	public let measured: [CGSize]
 	public let bounds: CGSize?
+	private let wrappedBands: [Int]
+	private let wrappedBandSizes: [CGFloat]
+	private let wrappedCrossMetrics: [TrackMetrics]
+	private let wrappedCrossOffsets: [CGFloat]
 
 	public init(
 		columns: TrackFactory,
 		rows: TrackFactory = .init(),
 		cells: [Cell],
-		arrangement: TrackArrangement = .gaps
+		arrangement: TrackArrangement = .gaps,
+		wrapping: GridWrapping = .none
 	) {
 		self.init(
 			columnFactory: columns,
 			rowFactory: rows,
 			cells: cells,
 			arrangement: arrangement,
+			wrapping: wrapping,
 			columns: .init(),
 			rows: .init(),
 			measured: Array(repeating: .zero, count: cells.count),
-			bounds: nil
+			bounds: nil,
+			wrappedBands: [],
+			wrappedBandSizes: [],
+			wrappedCrossMetrics: [],
+			wrappedCrossOffsets: []
 		)
 	}
 
@@ -56,19 +67,29 @@ public struct GridDefinition<Cell: TrackElement> {
 		rowFactory: TrackFactory,
 		cells: [Cell],
 		arrangement: TrackArrangement,
+		wrapping: GridWrapping,
 		columns: TrackMetrics,
 		rows: TrackMetrics,
 		measured: [CGSize],
-		bounds: CGSize?
+		bounds: CGSize?,
+		wrappedBands: [Int],
+		wrappedBandSizes: [CGFloat],
+		wrappedCrossMetrics: [TrackMetrics],
+		wrappedCrossOffsets: [CGFloat]
 	) {
 		self.columnFactory = columnFactory
 		self.rowFactory = rowFactory
 		self.cells = cells
 		self.arrangement = arrangement
+		self.wrapping = wrapping
 		self.columns = columns
 		self.rows = rows
 		self.measured = measured
 		self.bounds = bounds
+		self.wrappedBands = wrappedBands
+		self.wrappedBandSizes = wrappedBandSizes
+		self.wrappedCrossMetrics = wrappedCrossMetrics
+		self.wrappedCrossOffsets = wrappedCrossOffsets
 	}
 
 	public var columnCount: Int {
@@ -108,25 +129,50 @@ public struct GridDefinition<Cell: TrackElement> {
 		columnCount == 0 || cellCount == 0
 	}
 
+	private var wrappedBandCount: Int {
+		max(1, wrappedBandSizes.count)
+	}
+
 	public var size: CGSize {
-		.init(width: columns.size, height: rows.size)
+		switch wrapping {
+		case .vertical:
+			.init(width: columns.size * CGFloat(wrappedBandCount), height: rows.size)
+		case .horizontal:
+			.init(
+				width: columns.size,
+				height: wrappedCrossMetrics.isEmpty
+					? rows.size
+					: zip(wrappedCrossOffsets, wrappedCrossMetrics).map { $0 + $1.size }.max() ?? 0
+			)
+		case .none:
+			.init(width: columns.size, height: rows.size)
+		}
 	}
 
 	public func resolving(
 		bounds: CGSize,
 		columns: TrackMetrics,
 		rows: TrackMetrics,
-		measured: [CGSize]
+		measured: [CGSize],
+		wrappedBands: [Int] = [],
+		wrappedBandSizes: [CGFloat] = [],
+		wrappedCrossMetrics: [TrackMetrics] = [],
+		wrappedCrossOffsets: [CGFloat] = []
 	) -> Self {
 		.init(
 			columnFactory: columnFactory,
 			rowFactory: rowFactory,
 			cells: cells,
 			arrangement: arrangement,
+			wrapping: wrapping,
 			columns: columns,
 			rows: rows,
 			measured: measured,
-			bounds: bounds
+			bounds: bounds,
+			wrappedBands: wrappedBands,
+			wrappedBandSizes: wrappedBandSizes,
+			wrappedCrossMetrics: wrappedCrossMetrics,
+			wrappedCrossOffsets: wrappedCrossOffsets
 		)
 	}
 
@@ -162,31 +208,126 @@ public struct GridDefinition<Cell: TrackElement> {
 		}
 	}
 
+	private func band(forWrappedTrack index: Int) -> Int {
+		wrappedBands.indices.contains(index) ? wrappedBands[index] : 0
+	}
+
+	private func bandSize(_ band: Int) -> CGFloat {
+		wrappedBandSizes.indices.contains(band) ? wrappedBandSizes[band] : 0
+	}
+
+	private func crossMetrics(for band: Int) -> TrackMetrics {
+		wrappedCrossMetrics.indices.contains(band) ? wrappedCrossMetrics[band] : rows
+	}
+
+	private func crossOffset(for band: Int) -> CGFloat {
+		wrappedCrossOffsets.indices.contains(band) ? wrappedCrossOffsets[band] : 0
+	}
+
 	public func allocatedRect(_ origin: CGPoint = .zero, column: Int) -> CGRect {
-		.init(
-			x: origin.x + columns.offsets[column],
-			y: origin.y,
-			width: columns.lengths[column],
-			height: rows.size
-		)
+		switch wrapping {
+		case .horizontal:
+			let band = band(forWrappedTrack: column)
+			let cross = crossMetrics(for: band)
+			return .init(
+				x: origin.x + columns.offsets[column],
+				y: origin.y + crossOffset(for: band),
+				width: columns.lengths[column],
+				height: cross.size
+			)
+		case .vertical:
+			return allocatedRects(origin, column: column).first ?? .zero
+		case .none:
+			return .init(
+				x: origin.x + columns.offsets[column],
+				y: origin.y,
+				width: columns.lengths[column],
+				height: rows.size
+			)
+		}
 	}
 
 	public func allocatedRect(_ origin: CGPoint = .zero, row: Int) -> CGRect {
-		.init(
-			x: origin.x,
-			y: origin.y + rows.offsets[row],
-			width: columns.size,
-			height: rows.lengths[row]
-		)
+		switch wrapping {
+		case .vertical:
+			let band = band(forWrappedTrack: row)
+			return .init(
+				x: origin.x + CGFloat(band) * columns.size,
+				y: origin.y + rows.offsets[row],
+				width: columns.size,
+				height: rows.lengths[row]
+			)
+		case .horizontal:
+			return allocatedRects(origin, row: row).first ?? .zero
+		case .none:
+			return .init(
+				x: origin.x,
+				y: origin.y + rows.offsets[row],
+				width: columns.size,
+				height: rows.lengths[row]
+			)
+		}
 	}
 
 	public func allocatedRect(_ origin: CGPoint = .zero, column: Int, row: Int) -> CGRect {
-		.init(
-			x: origin.x + columns.offsets[column],
-			y: origin.y + rows.offsets[row],
+		var x = origin.x + columns.offsets[column]
+		var y = origin.y + rows.offsets[row]
+		switch wrapping {
+		case .vertical:
+			x += CGFloat(band(forWrappedTrack: row)) * columns.size
+		case .horizontal:
+			let band = band(forWrappedTrack: column)
+			let cross = crossMetrics(for: band)
+			y = origin.y + crossOffset(for: band) + cross.offsets[row]
+		case .none:
+			break
+		}
+		let height: CGFloat
+		if wrapping == .horizontal {
+			let band = band(forWrappedTrack: column)
+			height = crossMetrics(for: band).lengths[row]
+		} else {
+			height = rows.lengths[row]
+		}
+		return .init(
+			x: x,
+			y: y,
 			width: columns.lengths[column],
-			height: rows.lengths[row]
+			height: height
 		)
+	}
+
+	private func allocatedRects(_ origin: CGPoint, column: Int) -> [CGRect] {
+		guard wrapping == .vertical else {
+			return [allocatedRect(origin, column: column)]
+		}
+		return wrappedBandSizes.indices.map { band in
+			.init(
+				x: origin.x + CGFloat(band) * columns.size + columns.offsets[column],
+				y: origin.y,
+				width: columns.lengths[column],
+				height: bandSize(band)
+			)
+		}
+	}
+
+	private func allocatedRects(_ origin: CGPoint, row: Int) -> [CGRect] {
+		guard wrapping == .horizontal else {
+			return [allocatedRect(origin, row: row)]
+		}
+		return wrappedBandSizes.indices.map { band in
+			let cross = crossMetrics(for: band)
+			return .init(
+				x: origin.x,
+				y: origin.y + crossOffset(for: band) + cross.offsets[row],
+				width: bandSize(band),
+				height: cross.lengths[row]
+			)
+		}
+	}
+
+	private var hasResolvedWrapping: Bool {
+		wrapping != .none && wrappedBandSizes.count > 1
 	}
 
 	public func iterate(
@@ -194,6 +335,78 @@ public struct GridDefinition<Cell: TrackElement> {
 		truncate: Bool = false,
 		column rColumn: ((ColumnIteration) -> Void)? = nil,
 		row rRow: ((RowIteration) -> Void)? = nil,
+		cell rCell: @escaping (CellIteration) -> Void
+	) {
+		guard hasResolvedWrapping else {
+			iterateUnwrapped(
+				allocated: allocated,
+				truncate: truncate,
+				column: rColumn,
+				row: rRow,
+				cell: rCell
+			)
+			return
+		}
+
+		let origin = allocated.origin
+		if let rColumn {
+			for c in 0..<columnCount {
+				for rect in allocatedRects(origin, column: c) {
+					if (truncate ? rect.maxX : rect.minX) > allocated.maxX { continue }
+					if (truncate ? rect.maxY : rect.minY) > allocated.maxY { continue }
+					if rect.size.isEmpty { continue }
+					rColumn(.init(
+						definition: self,
+						track: columns.tracks[c],
+						index: c,
+						rect: rect
+					))
+				}
+			}
+		}
+
+		for r in 0..<rowCount {
+			let row = rows.tracks[r]
+			let rowAlignment = row.align
+			if let rRow {
+				for rowRect in allocatedRects(origin, row: r) {
+					if (truncate ? rowRect.maxX : rowRect.minX) > allocated.maxX { continue }
+					if (truncate ? rowRect.maxY : rowRect.minY) > allocated.maxY { continue }
+					if rowRect.size.isEmpty { continue }
+					rRow(.init(
+						definition: self,
+						track: row,
+						index: r,
+						rect: rowRect
+					))
+				}
+			}
+			for c in 0..<columnCount {
+				let rect = allocatedRect(origin, column: c, row: r)
+				if (truncate ? rect.maxX : rect.minX) > allocated.maxX { continue }
+				if (truncate ? rect.maxY : rect.minY) > allocated.maxY { continue }
+				if rect.size.isEmpty { continue }
+				let i = cellIdx(c, r)
+				let columnAlignment = columns.tracks[c].align
+				rCell(.init(
+					definition: self,
+					cell: cell(at: i),
+					c: c,
+					r: r,
+					i: i,
+					rect: rect,
+					content: measuredSize(at: i),
+					alignment: rowAlignment.union(columnAlignment)
+				))
+			}
+		}
+	}
+
+	private func iterateUnwrapped(
+		allocated: CGRect,
+		truncate: Bool,
+		column rColumn: ((ColumnIteration) -> Void)?,
+		row rRow: ((RowIteration) -> Void)?,
 		cell rCell: @escaping (CellIteration) -> Void
 	) {
 		let origin = allocated.origin
@@ -246,4 +459,5 @@ public struct GridDefinition<Cell: TrackElement> {
 			}
 		}
 	}
+
 }

@@ -64,6 +64,124 @@ public class TrackLayout {
 		metrics.size = 0
 	}
 
+
+	internal func applyWrapped(
+		available: CGFloat,
+		intrinsic: (
+			_ index: Int,
+			_ element: Track,
+			_ bound: CGFloat
+		) -> CGFloat
+	) -> WrappedTrackMetrics {
+		if let factory, metrics.tracks.isEmpty {
+			metrics.tracks = (0..<count).map(factory)
+		}
+		guard !metrics.tracks.isEmpty else {
+			return .init(metrics: metrics, bands: [], bandSizes: [])
+		}
+		prepare(intrinsic)
+
+		guard available != .unbounded, layout != .stack else {
+			calculateFills(available)
+			return .init(
+				metrics: metrics,
+				bands: Array(repeating: 0, count: metrics.tracks.count),
+				bandSizes: metrics.tracks.isEmpty ? [] : [metrics.size]
+			)
+		}
+
+		var lengths = preparedLengths
+		var offsets = Array(repeating: CGFloat.zero, count: metrics.tracks.count)
+		var bands = Array(repeating: 0, count: metrics.tracks.count)
+		var bandSizes: [CGFloat] = []
+		var band = 0
+		var position: CGFloat = 0
+		var previousVisibleIndex: Int?
+		var bandHasVisibleTrack = false
+
+		func finishBand() {
+			bandSizes.append(position)
+			band += 1
+			position = 0
+			previousVisibleIndex = nil
+			bandHasVisibleTrack = false
+		}
+
+		for index in metrics.tracks.indices {
+			let track = metrics.tracks[index]
+			bands[index] = band
+
+			switch track.length {
+			case .fill(let fraction, _, let maximum):
+				let lockedAtZero = maximum <= 0 || fraction.map { $0 <= 0 } ?? false
+				guard !lockedAtZero else {
+					lengths[index] = 0
+				offsets[index] = position
+					continue
+				}
+
+				let gap = (layout == .gaps && bandHasVisibleTrack && previousVisibleIndex != nil)
+					? max(metrics.tracks[previousVisibleIndex!].gap, 0)
+					: 0
+				let remaining = max(0, available - position - gap)
+				let resolved = min(maximum, remaining)
+				if resolved > 0 {
+					position += gap
+					offsets[index] = position
+					lengths[index] = resolved
+					position += resolved
+					previousVisibleIndex = index
+					bandHasVisibleTrack = true
+				} else {
+					lengths[index] = 0
+					offsets[index] = position
+				}
+				finishBand()
+
+			default:
+				let length = max(preparedLengths[index], 0)
+				guard length > 0 else {
+					lengths[index] = 0
+					offsets[index] = position
+					continue
+				}
+
+				var gap: CGFloat = 0
+				if layout == .gaps, let previousVisibleIndex {
+					gap = max(metrics.tracks[previousVisibleIndex].gap, 0)
+				}
+				if bandHasVisibleTrack && position + gap + length > available {
+					finishBand()
+					bands[index] = band
+					gap = 0
+				}
+
+				position += gap
+				offsets[index] = position
+				lengths[index] = length
+				position += length
+				previousVisibleIndex = index
+				bandHasVisibleTrack = true
+			}
+		}
+
+		if bandHasVisibleTrack || bandSizes.isEmpty {
+			bandSizes.append(position)
+		} else if bandSizes.last == 0, bandSizes.count > 1 {
+			bandSizes.removeLast()
+		}
+
+		let wrappedSize = bandSizes.max() ?? 0
+		let wrappedMetrics = TrackMetrics(
+			tracks: metrics.tracks,
+			lengths: lengths,
+			offsets: offsets,
+			size: wrappedSize
+		)
+		self.metrics = wrappedMetrics
+		return .init(metrics: wrappedMetrics, bands: bands, bandSizes: bandSizes)
+	}
+
 	public func apply(
 		available: CGFloat = .unbounded,
 		intrinsic: (

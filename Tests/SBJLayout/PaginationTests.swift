@@ -61,4 +61,77 @@ struct PaginationTests {
 		pagination.measuredGroup(third, CGSize(width: 100, height: 10), behavior: .flow, spacingBefore: 0)
 		#expect(pagination.pageNumber == 2)
 	}
+	@Test("Horizontal groups paginate by wrapped line height")
+	func horizontalLineHeight() {
+		let pagination = pagination()
+		let intrinsic = pagination.registerGroup()
+		let fill = pagination.registerGroup()
+		let nextLine = pagination.registerGroup()
+
+		pagination.measuredGroup(
+			intrinsic,
+			CGSize(width: 35, height: 60),
+			behavior: .flow,
+			spacingBefore: 0,
+			terminatesLine: false
+		)
+		pagination.measuredGroup(
+			fill,
+			CGSize(width: 65, height: 30),
+			behavior: .flow,
+			spacingBefore: 0,
+			terminatesLine: true
+		)
+		pagination.measuredGroup(
+			nextLine,
+			CGSize(width: 100, height: 35),
+			behavior: .flow,
+			spacingBefore: 0,
+			terminatesLine: true
+		)
+
+		// The first two groups share one 60-point line, rather than
+		// consuming 60 + 30 points independently.
+		#expect(pagination.pageNumber == 1)
+	}
+
+	@Test("Rendering applies content inset without reapplying page margin")
+	func renderingPreservesX() {
+		let pagination = Pagination(
+			layout: .init(
+				pageSize: .custom(width: 120, height: 100),
+				margins: .init(left: 12, right: 8, top: 0, bottom: 0)
+			),
+			insets: .init(left: 7, right: 0, top: 0, bottom: 0)
+		)
+		#expect(pagination.printableRect.origin.x == 12)
+		#expect(pagination.contentRect.origin.x == 19)
+
+		let first = pagination.registerGroup()
+		let second = pagination.registerGroup()
+
+		pagination.measuredGroup(
+			first,
+			CGSize(width: 35, height: 20),
+			behavior: .flow,
+			spacingBefore: 0,
+			terminatesLine: false
+		)
+		pagination.measuredGroup(
+			second,
+			CGSize(width: 65, height: 20),
+			behavior: .flow,
+			spacingBefore: 0,
+			terminatesLine: true
+		)
+
+		// Grid origins are already based at printableRect.origin.x.
+		// Pagination adds only the content inset (19 - 12 = 7).
+		let firstOrigin = pagination.renderingGroup(first, from: CGPoint(x: 22, y: 0))
+		let secondOrigin = pagination.renderingGroup(second, from: CGPoint(x: 57, y: 0))
+		#expect(firstOrigin.x == 29)
+		#expect(secondOrigin.x == 64)
+		#expect(secondOrigin.x - firstOrigin.x == 35)
+	}
+
 }

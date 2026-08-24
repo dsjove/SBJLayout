@@ -19,19 +19,25 @@ public struct PaginationGroup: Renderable  {
 	var paginationId: Int
 	let behavior: PaginationBehavior
 	let groupGap: CGFloat
+	let terminatesLine: Bool
 	let grid: Grid
 
 	public init(
 		behavior: PaginationBehavior = .flow,
 		groupGap: CGFloat,
+		dimension: TrackSize = .fill(),
 		@RenderableBuilder
 		content: () -> Renderables,
 	) {
 		self.paginationId = Self.pagination.registerGroup()
 		self.behavior = behavior
 		self.groupGap = groupGap
+		self.terminatesLine = {
+			if case .fill = dimension { return true }
+			return false
+		}()
 		self.grid = Grid(
-			vertFlow: .init(.fill()),
+			vertFlow: .init(dimension),
 			rows: .init(gap: groupGap)
 		) {
 			content()
@@ -44,7 +50,8 @@ public struct PaginationGroup: Renderable  {
 			paginationId,
 			size,
 			behavior: behavior,
-			spacingBefore: groupGap
+			spacingBefore: groupGap,
+			terminatesLine: terminatesLine
 		)
 		return size
 	}

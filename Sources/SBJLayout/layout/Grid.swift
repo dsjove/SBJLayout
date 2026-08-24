@@ -1,10 +1,7 @@
 import CoreGraphics
 // TODO: Feature - Pagination policies
 // TODO: Feature - Pivot Table
-// TODO: Feature - Wrapping
-//     wrapped(v) - hits bottom, sets y = 0 and x+=width, measured width needs to account
-//     wrapped(h) - hits right, sets x = 0 and y+=height, measured height needs to account
-//     header duplication?
+// TODO: Feature - Wrapping header duplication?
 // TODO: Feature - identifiable reducers and groupings for uniform Tracks
 // TODO: Feature - draw placeholder tracks to bounded edge (like min track)
 
@@ -177,6 +174,7 @@ public struct Grid: Renderable {
 		rows: Rows = .init(),
 		render: Render = .init(),
 		arrangement: TrackArrangement = .gaps,
+		wrapping: GridWrapping = .none,
 		@RenderableBuilder cells: ()->Cells
 	) {
 		self.init(
@@ -184,6 +182,7 @@ public struct Grid: Renderable {
 			rows: rows,
 			render: render,
 			arrangement: arrangement,
+			wrapping: wrapping,
 			cells: cells())
 	}
 
@@ -192,6 +191,7 @@ public struct Grid: Renderable {
 		rows: Rows = .init(),
 		render: Render = .init(),
 		arrangement: TrackArrangement = .gaps,
+		wrapping: GridWrapping = .none,
 		cells: Cells
 	) {
 		self.render = render
@@ -199,7 +199,8 @@ public struct Grid: Renderable {
 			columns: cols,
 			rows: rows,
 			cells: cells.map(TrackedElement.init),
-			arrangement: arrangement)
+			arrangement: arrangement,
+			wrapping: wrapping)
 	}
 
 	public private(set) var id: String = ""
@@ -220,7 +221,7 @@ public struct Grid: Renderable {
 	}
 
 	public func render(in allocated: CGRect, measured: CGSize, align: Alignment) {
-		let definition = layout.measure(bounds: measured)
+		let definition = layout.resolvedDefinition(for: measured)
 		let positioned = align.apply(size: definition.size, in: allocated)
 if drawAllocated {
 	JCSRect(stroke: .blue.withAlphaComponent(0.5) , lineWidth: 1.5).draw(in: positioned)
