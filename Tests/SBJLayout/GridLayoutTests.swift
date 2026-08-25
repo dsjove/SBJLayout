@@ -74,6 +74,50 @@ struct GridLayoutTests {
 		)
 	}
 
+	@Test("A conditional fill column collapses when its content is empty")
+	func conditionalFillCollapsesForEmptyContent() {
+		let empty = MeasuringElement(size: .zero)
+		let content = MeasuringElement(size: CGSize(width: 80, height: 20))
+		let layout = GridLayout(
+			columns: .init([
+				Track(.fill(ifContent: true), gap: 12),
+				Track(.intrinsic())
+			]),
+			cells: [empty, content],
+			arrangement: .gaps
+		)
+
+		let definition = layout.measure(
+			bounds: CGSize(width: 300, height: .unbounded)
+		)
+
+		#expect(definition.columns.lengths == [0, 80])
+		#expect(definition.columns.offsets == [0, 0])
+		#expect(definition.size.width == 80)
+	}
+
+	@Test("A conditional fill column fills when its content is nonempty")
+	func conditionalFillUsesAvailableSpaceForContent() {
+		let image = MeasuringElement(size: CGSize(width: 40, height: 50))
+		let content = MeasuringElement(size: CGSize(width: 80, height: 20))
+		let layout = GridLayout(
+			columns: .init([
+				Track(.fill(ifContent: true)),
+				Track(.intrinsic())
+			]),
+			cells: [image, content],
+			arrangement: .tight
+		)
+
+		let definition = layout.measure(
+			bounds: CGSize(width: 300, height: .unbounded)
+		)
+
+		#expect(definition.columns.lengths == [220, 80])
+		#expect(definition.columns.offsets == [0, 220])
+		#expect(definition.size.width == 300)
+	}
+
 	@Test("A fill cell is remeasured only when its resolved width changes")
 	func fillCellRemeasuresForChangedWidth() {
 		let cell = MeasuringElement { bounds in

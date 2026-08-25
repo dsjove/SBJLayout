@@ -264,6 +264,60 @@ struct TrackLayoutTests {
     }
 
     @Test
+    func testConditionalFillCollapsesWithoutContent() {
+        let widths = TrackLayout(
+            tracks: [
+                Track(.fill(ifContent: true), gap: 12),
+                Track(.fixed(80))
+            ],
+            layout: .gaps
+        )
+
+        apply(widths, available: 300, intrinsicValues: [0, 0])
+
+        expectEqual(widths.lengths, [0, 80])
+        expectEqual(widths.offsets, [0, 0])
+        expectEqual(widths.size, 80)
+        #expect(widths.fillCount == 0)
+    }
+
+    @Test
+    func testConditionalFillParticipatesWhenItHasContent() {
+        let widths = TrackLayout(
+            tracks: [
+                Track(.fill(ifContent: true)),
+                Track(.fill())
+            ],
+            layout: .tight
+        )
+
+        apply(widths, available: 300, intrinsicValues: [20, 0])
+
+        expectEqual(widths.lengths, [150, 150])
+        expectEqual(widths.offsets, [0, 150])
+        expectEqual(widths.size, 300)
+        #expect(widths.fillCount == 2)
+    }
+
+    @Test
+    func testInactiveConditionalFillDoesNotDiluteOtherFillFraction() {
+        let widths = TrackLayout(
+            tracks: [
+                Track(.fill(ifContent: true)),
+                Track(.fill())
+            ],
+            layout: .tight
+        )
+
+        apply(widths, available: 300, intrinsicValues: [0, 0])
+
+        expectEqual(widths.lengths, [0, 300])
+        expectEqual(widths.offsets, [0, 0])
+        expectEqual(widths.size, 300)
+        #expect(widths.fillCount == 1)
+    }
+
+    @Test
     func testZeroFractionFillIsLockedAtZero() {
         let widths = TrackLayout(
             tracks: [

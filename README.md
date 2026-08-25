@@ -60,7 +60,7 @@ Grid can also wrap resolved tracks against a bounded primary axis with `wrapping
 - `.fixed(value)` — fixed length; negative values resolve to zero.
 - `.intrinsic(bound:min:)` — measure cell content with a suggested bound and optional minimum.
 - `.uniform(reduce:)` — measure uniform candidates and apply a reducer, `max` by default.
-- `.fill(fraction:min:max:)` — consume remaining bounded space subject to fraction/min/max rules.
+- `.fill(fraction:min:max:ifContent:)` — consume remaining bounded space subject to fraction/min/max rules. With `ifContent: true`, the fill track collapses when its intrinsic aggregate on that axis is zero.
 
 `TrackArrangement` controls how tracks combine:
 
