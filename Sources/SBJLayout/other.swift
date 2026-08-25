@@ -27,8 +27,3 @@ struct Position: Hashable, Identifiable {
 
 	var id: Self { self }
 }
-
-public enum JCSAxis {
-	case horizontal
-	case vertical
-}

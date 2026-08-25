@@ -19,6 +19,20 @@ public struct TrackMetrics {
 	}
 }
 
+public enum Axis {
+	case horizontal
+	case vertical
+}
+
+//TODO: Fill is the only end-band 
+internal struct WrappedTrackMetrics {
+	let metrics: TrackMetrics
+	let bands: [Int]
+	let bandSizes: [CGFloat]
+
+	var bandCount: Int { bandSizes.count }
+}
+
 public class TrackLayout {
 // Init
 	public let factory: ((Int)->Track)?
