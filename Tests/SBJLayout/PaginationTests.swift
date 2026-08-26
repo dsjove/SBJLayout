@@ -14,9 +14,9 @@ struct PaginationTests {
 	@Test("Keep-with moves the preceding group with the current group")
 	func keepWithPrevious() {
 		let pagination = pagination()
-		let first = pagination.registerGroup()
-		let second = pagination.registerGroup()
-		let third = pagination.registerGroup()
+		let first = pagination.registerGroup(sectionID: "first")
+		let second = pagination.registerGroup(sectionID: "second")
+		let third = pagination.registerGroup(sectionID: "third")
 
 		pagination.measuredGroup(first, CGSize(width: 100, height: 60), behavior: .flow, spacingBefore: 0)
 		pagination.measuredGroup(second, CGSize(width: 100, height: 30), behavior: .flow, spacingBefore: 0)
@@ -27,9 +27,9 @@ struct PaginationTests {
 
 		// The keep-with relationship forms a 50-point unit, so the second group,
 		// not the third, becomes the start of page two.
-		_ = pagination.renderingGroup(first, from: .zero)
-		let secondOrigin = pagination.renderingGroup(second, from: CGPoint(x: 0, y: 60))
-		let thirdOrigin = pagination.renderingGroup(third, from: CGPoint(x: 0, y: 90))
+		_ = pagination.renderingGroup(first, frame: CGRect(origin: .zero, size: CGSize(width: 100, height: 60)))
+		let secondOrigin = pagination.renderingGroup(second, frame: CGRect(origin: CGPoint(x: 0, y: 60), size: CGSize(width: 100, height: 30)))
+		let thirdOrigin = pagination.renderingGroup(third, frame: CGRect(origin: CGPoint(x: 0, y: 90), size: CGSize(width: 100, height: 20)))
 		#expect(secondOrigin.y == 0)
 		#expect(thirdOrigin.y == 30)
 	}
@@ -37,8 +37,8 @@ struct PaginationTests {
 	@Test("Page behavior forces a new page except for the first group")
 	func forcedPage() {
 		let pagination = pagination()
-		let first = pagination.registerGroup()
-		let second = pagination.registerGroup()
+		let first = pagination.registerGroup(sectionID: "first")
+		let second = pagination.registerGroup(sectionID: "second")
 
 		pagination.measuredGroup(first, CGSize(width: 100, height: 20), behavior: .page, spacingBefore: 0)
 		#expect(pagination.pageNumber == 1)
@@ -50,9 +50,9 @@ struct PaginationTests {
 	@Test("Flow starts a new page only when the next unit does not fit")
 	func flow() {
 		let pagination = pagination()
-		let first = pagination.registerGroup()
-		let second = pagination.registerGroup()
-		let third = pagination.registerGroup()
+		let first = pagination.registerGroup(sectionID: "first")
+		let second = pagination.registerGroup(sectionID: "second")
+		let third = pagination.registerGroup(sectionID: "third")
 
 		pagination.measuredGroup(first, CGSize(width: 100, height: 40), behavior: .flow, spacingBefore: 0)
 		pagination.measuredGroup(second, CGSize(width: 100, height: 50), behavior: .flow, spacingBefore: 5)
@@ -64,9 +64,9 @@ struct PaginationTests {
 	@Test("Horizontal groups paginate by wrapped line height")
 	func horizontalLineHeight() {
 		let pagination = pagination()
-		let intrinsic = pagination.registerGroup()
-		let fill = pagination.registerGroup()
-		let nextLine = pagination.registerGroup()
+		let intrinsic = pagination.registerGroup(sectionID: "intrinsic")
+		let fill = pagination.registerGroup(sectionID: "fill")
+		let nextLine = pagination.registerGroup(sectionID: "nextLine")
 
 		pagination.measuredGroup(
 			intrinsic,
@@ -95,6 +95,44 @@ struct PaginationTests {
 		#expect(pagination.pageNumber == 1)
 	}
 
+
+	@Test("Pagination order follows group registration, not measurement order")
+	func registrationOrderSurvivesOutOfOrderMeasurement() {
+		let pagination = pagination()
+		let intrinsic = pagination.registerGroup(sectionID: "money")
+		let fill = pagination.registerGroup(sectionID: "valuables")
+		let nextLine = pagination.registerGroup(sectionID: "next")
+
+		// Grid may measure fill and intrinsic tracks in an order different from
+		// their declarative/render order. Pagination must not use measurement
+		// order to reconstruct horizontal lines.
+		pagination.measuredGroup(
+			fill,
+			CGSize(width: 65, height: 30),
+			behavior: .flow,
+			spacingBefore: 0,
+			terminatesLine: true
+		)
+		pagination.measuredGroup(
+			intrinsic,
+			CGSize(width: 35, height: 60),
+			behavior: .flow,
+			spacingBefore: 0,
+			terminatesLine: false
+		)
+		pagination.measuredGroup(
+			nextLine,
+			CGSize(width: 100, height: 35),
+			behavior: .flow,
+			spacingBefore: 0,
+			terminatesLine: true
+		)
+
+		// Money + Valuables are one 60-point line; the next line is 35 points.
+		// If measurement order were used, they would incorrectly consume 125.
+		#expect(pagination.pageNumber == 1)
+	}
+
 	@Test("Rendering applies content inset without reapplying page margin")
 	func renderingPreservesX() {
 		let pagination = Pagination(
@@ -107,8 +145,8 @@ struct PaginationTests {
 		#expect(pagination.printableRect.origin.x == 12)
 		#expect(pagination.contentRect.origin.x == 19)
 
-		let first = pagination.registerGroup()
-		let second = pagination.registerGroup()
+		let first = pagination.registerGroup(sectionID: "first")
+		let second = pagination.registerGroup(sectionID: "second")
 
 		pagination.measuredGroup(
 			first,
@@ -127,11 +165,14 @@ struct PaginationTests {
 
 		// Grid origins are already based at printableRect.origin.x.
 		// Pagination adds only the content inset (19 - 12 = 7).
-		let firstOrigin = pagination.renderingGroup(first, from: CGPoint(x: 22, y: 0))
-		let secondOrigin = pagination.renderingGroup(second, from: CGPoint(x: 57, y: 0))
+		let firstOrigin = pagination.renderingGroup(first, frame: CGRect(origin: CGPoint(x: 22, y: 0), size: CGSize(width: 35, height: 20)))
+		let secondOrigin = pagination.renderingGroup(second, frame: CGRect(origin: CGPoint(x: 57, y: 0), size: CGSize(width: 65, height: 20)))
 		#expect(firstOrigin.x == 29)
 		#expect(secondOrigin.x == 64)
 		#expect(secondOrigin.x - firstOrigin.x == 35)
+		#expect(pagination.positions["first"]?.pageIndex == 0)
+		#expect(pagination.positions["first"]?.frame.origin == firstOrigin)
+		#expect(pagination.positions["first"]?.pageRect == pagination.pageRect)
 	}
 
 }

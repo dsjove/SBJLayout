@@ -16,20 +16,21 @@ public enum PaginationBehavior: String, Codable, CaseIterable, Sendable {
 }
 
 public struct PaginationGroup: Renderable  {
-	var paginationId: Int
+	let paginationKey: PaginationGroupKey
 	let behavior: PaginationBehavior
 	let groupGap: CGFloat
 	let terminatesLine: Bool
 	let grid: Grid
 
 	public init(
+		sectionID: String,
 		behavior: PaginationBehavior = .flow,
 		groupGap: CGFloat,
 		dimension: TrackSize = .fill(),
 		@RenderableBuilder
 		content: () -> Renderables,
 	) {
-		self.paginationId = Self.pagination.registerGroup()
+		self.paginationKey = Self.pagination.registerGroup(sectionID: sectionID)
 		self.behavior = behavior
 		self.groupGap = groupGap
 		self.terminatesLine = {
@@ -47,7 +48,7 @@ public struct PaginationGroup: Renderable  {
 	public func measure(bounds: CGSize) -> CGSize {
 		let size = self.grid.measure(bounds: bounds)
 		Self.pagination.measuredGroup(
-			paginationId,
+			paginationKey,
 			size,
 			behavior: behavior,
 			spacingBefore: groupGap,
@@ -57,7 +58,10 @@ public struct PaginationGroup: Renderable  {
 	}
 
 	public func render(in allocated: CGRect, measured: CGSize, align: SBJLayout.Alignment) {
-		let pageOrigin = Self.pagination.renderingGroup(paginationId, from: allocated.origin)
+		let pageOrigin = Self.pagination.renderingGroup(
+			paginationKey,
+			frame: allocated
+		)
 		self.grid.render(in: allocated.reorigin(at: pageOrigin), measured: measured, align: align)
 	}
 }
