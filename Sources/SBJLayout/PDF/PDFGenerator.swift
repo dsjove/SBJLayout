@@ -59,3 +59,42 @@ public struct PDFGenerator {
 		return (data, positions)
 	}
 }
+
+public extension PDFRenderResult {
+	/// Draws one generated PDF page into an existing Core Graphics context, preserving
+	/// the page's aspect ratio and centering it inside `bounds`.
+	///
+	/// This is useful when another subsystem (for example Quick Look thumbnailing)
+	/// supplies the graphics context instead of asking SBJLayout to create a PDF context.
+	@discardableResult
+	func drawPage(
+		_ index: Int,
+		in context: CGContext,
+		fitting bounds: CGRect
+	) -> Bool {
+		guard index >= 0,
+			let page = document?.page(at: index)
+		else { return false }
+
+		let pageBounds = page.bounds(for: .mediaBox)
+		guard pageBounds.width > 0, pageBounds.height > 0,
+			bounds.width > 0, bounds.height > 0
+		else { return false }
+
+		let scale = min(bounds.width / pageBounds.width, bounds.height / pageBounds.height)
+		let fittedSize = CGSize(width: pageBounds.width * scale, height: pageBounds.height * scale)
+		let origin = CGPoint(
+			x: bounds.midX - fittedSize.width / 2,
+			y: bounds.midY - fittedSize.height / 2
+		)
+
+		context.saveGState()
+		defer { context.restoreGState() }
+
+		context.translateBy(x: origin.x, y: origin.y)
+		context.scaleBy(x: scale, y: scale)
+		context.translateBy(x: -pageBounds.minX, y: -pageBounds.minY)
+		page.draw(with: .mediaBox, to: context)
+		return true
+	}
+}
