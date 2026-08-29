@@ -176,3 +176,40 @@ struct PaginationTests {
 	}
 
 }
+
+extension PaginationTests {
+	@Test("Page range measures earlier pages but emits only selected pages")
+	func pageRangeSkipsEarlierRendering() {
+		var emittedPages = 0
+		let pagination = Pagination(
+			layout: .init(
+				pageSize: .custom(width: 100, height: 100),
+				margins: .zero
+			),
+			pages: 1..<3
+		) { _ in
+			emittedPages += 1
+		}
+		let first = pagination.registerGroup(sectionID: "first")
+		let second = pagination.registerGroup(sectionID: "second")
+		let third = pagination.registerGroup(sectionID: "third")
+
+		pagination.measuredGroup(first, CGSize(width: 100, height: 100), behavior: .page, spacingBefore: 0)
+		pagination.measuredGroup(second, CGSize(width: 100, height: 100), behavior: .page, spacingBefore: 0)
+		pagination.measuredGroup(third, CGSize(width: 100, height: 100), behavior: .page, spacingBefore: 0)
+		#expect(pagination.pageNumber == 3)
+
+		_ = pagination.renderingGroup(first, frame: CGRect(x: 0, y: 0, width: 100, height: 100))
+		#expect(!pagination.isRenderingPage)
+		#expect(pagination.positions["first"] == nil)
+
+		_ = pagination.renderingGroup(second, frame: CGRect(x: 0, y: 100, width: 100, height: 100))
+		#expect(pagination.isRenderingPage)
+		#expect(pagination.positions["second"]?.pageIndex == 0)
+
+		_ = pagination.renderingGroup(third, frame: CGRect(x: 0, y: 200, width: 100, height: 100))
+		#expect(pagination.isRenderingPage)
+		#expect(pagination.positions["third"]?.pageIndex == 1)
+		#expect(emittedPages == 2)
+	}
+}

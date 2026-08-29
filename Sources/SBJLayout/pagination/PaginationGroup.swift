@@ -62,6 +62,7 @@ public struct PaginationGroup: Renderable  {
 			paginationKey,
 			frame: allocated
 		)
+		guard Self.pagination.isRenderingPage else { return }
 		self.grid.render(in: allocated.reorigin(at: pageOrigin), measured: measured, align: align)
 	}
 }

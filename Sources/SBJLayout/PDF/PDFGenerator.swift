@@ -22,12 +22,24 @@ public struct PDFGenerator {
 		self.pageLayout = pageLayout
 	}
 
-	public func render(_ content: Renderable, jargon: Jargon = .standard, insets: Insets = .zero, _ paging: ((Pagination) -> ())? = nil) -> Data {
-		renderResult(content, jargon: jargon, insets: insets, paging).data
+	public func render(
+		_ content: Renderable,
+		jargon: Jargon = .standard,
+		insets: Insets = .zero,
+		pages: Range<Int>? = nil,
+		_ paging: ((Pagination) -> ())? = nil
+	) -> Data {
+		renderResult(content, jargon: jargon, insets: insets, pages: pages, paging).data
 	}
 
-	public func form(_ content: Renderable, jargon: Jargon = .standard, insets: Insets = .zero, _ paging: ((Pagination) -> ())? = nil) -> PDFRenderResult {
-		let rendered = renderResult(content, jargon: jargon, insets: insets, paging)
+	public func form(
+		_ content: Renderable,
+		jargon: Jargon = .standard,
+		insets: Insets = .zero,
+		pages: Range<Int>? = nil,
+		_ paging: ((Pagination) -> ())? = nil
+	) -> PDFRenderResult {
+		let rendered = renderResult(content, jargon: jargon, insets: insets, pages: pages, paging)
 		return PDFRenderResult(
 			data: rendered.data,
 			document: PDFDocument(data: rendered.data),
@@ -39,13 +51,14 @@ public struct PDFGenerator {
 		_ content: Renderable,
 		jargon: Jargon,
 		insets: Insets,
+		pages: Range<Int>?,
 		_ paging: ((Pagination) -> ())?
 	) -> (data: Data, positions: [String: PaginationPosition]) {
 		let pageRect = pageLayout.pageSize.rect(landscape: pageLayout.landscape, margin: .zero)
 		let renderer = UIGraphicsPDFRenderer(bounds: pageRect)
 		var positions: [String: PaginationPosition] = [:]
 		let data = renderer.pdfData { context in
-			let pagination = Pagination(layout: pageLayout, insets: insets) {
+			let pagination = Pagination(layout: pageLayout, insets: insets, pages: pages) {
 				context.beginPage()
 				paging?($0)
 			}

@@ -45,6 +45,7 @@ public class Pagination {
 
 	public let layout: PageLayout
 	public let estimatedPageCountMax: Int?
+	public let pagesToRender: Range<Int>?
 	public let paging: ((Pagination) -> ())?
 
 	public var pageRect: CGRect { layout.pageRect }
@@ -58,16 +59,20 @@ public class Pagination {
 	private var groups: [PaginationGroupKey: MeasuredGroup] = [:]
 	private var pages: Set<PaginationGroupKey> = []
 	private var renderPageOffsetY: CGFloat = 0
+	private var sourcePageIndex = -1
 	private var renderPageIndex = -1
+	private(set) var isRenderingPage = false
 
 	public init(
 		layout: PageLayout = .init(),
 		insets: Insets = .zero,
 		estimatedPageCountMax: Int? = nil,
+		pages: Range<Int>? = nil,
 		paging: ((Pagination) -> ())? = nil
 	) {
 		self.layout = layout
 		self.estimatedPageCountMax = estimatedPageCountMax
+		self.pagesToRender = pages
 		self.paging = paging
 		self.contentRect = insets.apply(to: layout.printableRect)
 	}
@@ -208,8 +213,12 @@ public class Pagination {
 
 	func renderingGroup(_ key: PaginationGroupKey, frame: CGRect) -> CGPoint {
 		if pages.contains(key) {
-			paging?(self)
-			renderPageIndex += 1
+			sourcePageIndex += 1
+			isRenderingPage = pagesToRender?.contains(sourcePageIndex) ?? true
+			if isRenderingPage {
+				paging?(self)
+				renderPageIndex += 1
+			}
 			renderPageOffsetY = frame.origin.y - contentRect.origin.y
 		}
 
@@ -217,11 +226,13 @@ public class Pagination {
 			x: frame.origin.x + (contentRect.origin.x - printableRect.origin.x),
 			y: frame.origin.y - renderPageOffsetY
 		)
-		positions[key.sectionID] = PaginationPosition(
-			pageIndex: max(0, renderPageIndex),
-			frame: CGRect(origin: pageOrigin, size: frame.size),
-			pageRect: pageRect
-		)
+		if isRenderingPage {
+			positions[key.sectionID] = PaginationPosition(
+				pageIndex: max(0, renderPageIndex),
+				frame: CGRect(origin: pageOrigin, size: frame.size),
+				pageRect: pageRect
+			)
+		}
 		return pageOrigin
 	}
 }
