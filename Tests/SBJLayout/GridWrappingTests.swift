@@ -206,14 +206,15 @@ struct GridWrappingTests {
 		])
 		#expect(rows.map(\.index) == [0, 1, 2, 3])
 	}
+
 	@Test("Horizontal wrapped bands size their rows from cells in that band")
 	func horizontalBandsHaveIndependentRowHeights() {
 		let layout = GridLayout(
 			columns: .init([
-				Track(.fixed(40)),
-				Track(.fixed(40)),
-				Track(.fixed(40)),
-				Track(.fixed(40))
+				Track(.fixed(40), gap: 0),
+				Track(.fixed(40), gap: 0),
+				Track(.fixed(40), gap: 0),
+				Track(.fixed(40), gap: 0)
 			]),
 			rows: .init(.intrinsic(), gap: 5),
 			cells: [
@@ -225,11 +226,11 @@ struct GridWrappingTests {
 		)
 
 		let definition = layout.measure(bounds: CGSize(width: 85, height: 200))
+
 		#expect(definition.size == CGSize(width: 80, height: 65))
 		#expect(definition.allocatedRect(column: 0, row: 0) == CGRect(x: 0, y: 0, width: 40, height: 20))
 		#expect(definition.allocatedRect(column: 1, row: 0) == CGRect(x: 40, y: 0, width: 40, height: 20))
 		#expect(definition.allocatedRect(column: 2, row: 0) == CGRect(x: 0, y: 25, width: 40, height: 40))
 		#expect(definition.allocatedRect(column: 3, row: 0) == CGRect(x: 40, y: 25, width: 40, height: 40))
 	}
-
 }
