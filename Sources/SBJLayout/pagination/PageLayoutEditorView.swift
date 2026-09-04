@@ -1,57 +1,40 @@
 import SwiftUI
 import Foundation
 
-public struct PageLayoutEditorView: View {
-	@Environment(\.dismiss) private var dismiss
-	@State private var pageLayout: PageLayout
-	private let originalPageLayout: PageLayout
-	private let onChange: (PageLayout) -> Void
+/// The reusable page-layout editor body.
+///
+/// This view deliberately owns no navigation or presentation chrome, so an
+/// application can place it inside its normal sheet/window editor host without
+/// introducing a second `NavigationStack`, title, Restore button, or Done
+/// button.
+public struct PageLayoutEditorCore: View {
+	@Binding private var pageLayout: PageLayout
 
-	public init(pageLayout: PageLayout, onChange: @escaping (PageLayout) -> Void) {
-		_pageLayout = State(initialValue: pageLayout)
-		originalPageLayout = pageLayout
-		self.onChange = onChange
+	public init(pageLayout: Binding<PageLayout>) {
+		_pageLayout = pageLayout
 	}
 
 	public var body: some View {
-		NavigationStack {
-			Form {
-				Section("Page") {
-					Menu {
-						pageSizeMenuSection("North American", sizes: PageSize.northAmerican)
-						pageSizeMenuSection("ISO A", sizes: PageSize.isoA)
-						pageSizeMenuSection("Photo", sizes: PageSize.photo)
-					} label: {
-						LabeledContent("Page Size") {
-							Text(pageLayout.pageSize.description)
-								.foregroundStyle(.secondary)
-						}
+		Form {
+			Section("Page") {
+				Menu {
+					pageSizeMenuSection("North American", sizes: PageSize.northAmerican)
+					pageSizeMenuSection("ISO A", sizes: PageSize.isoA)
+					pageSizeMenuSection("Photo", sizes: PageSize.photo)
+				} label: {
+					LabeledContent("Page Size") {
+						Text(pageLayout.pageSize.description)
+							.foregroundStyle(.secondary)
 					}
-					Toggle("Landscape", isOn: $pageLayout.landscape)
 				}
+				Toggle("Landscape", isOn: $pageLayout.landscape)
+			}
 
-				Section("Margins") {
-					marginRow("Top", keyPath: \.top)
-					marginRow("Bottom", keyPath: \.bottom)
-					marginRow("Left", keyPath: \.left)
-					marginRow("Right", keyPath: \.right)
-				}
-			}
-			.navigationTitle("Page Layout")
-			.navigationBarTitleDisplayMode(.inline)
-			.toolbar {
-				ToolbarItem(placement: .cancellationAction) {
-					Button("Restore") {
-						pageLayout = originalPageLayout
-					}
-					.disabled(pageLayout == originalPageLayout)
-				}
-				ToolbarItem(placement: .confirmationAction) {
-					Button("Done") { dismiss() }
-				}
-			}
-			.onChange(of: pageLayout) { _, newValue in
-				onChange(newValue)
+			Section("Margins") {
+				marginRow("Top", keyPath: \.top)
+				marginRow("Bottom", keyPath: \.bottom)
+				marginRow("Left", keyPath: \.left)
+				marginRow("Right", keyPath: \.right)
 			}
 		}
 	}
@@ -141,6 +124,46 @@ public struct PageLayoutEditorView: View {
 				)
 			}
 		)
+	}
+}
+
+/// Compatibility presentation wrapper around ``PageLayoutEditorCore``.
+///
+/// Existing callers can keep presenting this view directly. Callers that
+/// already provide editor navigation/chrome should use `PageLayoutEditorCore`
+/// with a binding instead.
+public struct PageLayoutEditorView: View {
+	@Environment(\.dismiss) private var dismiss
+	@State private var pageLayout: PageLayout
+	private let originalPageLayout: PageLayout
+	private let onChange: (PageLayout) -> Void
+
+	public init(pageLayout: PageLayout, onChange: @escaping (PageLayout) -> Void) {
+		_pageLayout = State(initialValue: pageLayout)
+		originalPageLayout = pageLayout
+		self.onChange = onChange
+	}
+
+	public var body: some View {
+		NavigationStack {
+			PageLayoutEditorCore(pageLayout: $pageLayout)
+				.navigationTitle("Page Layout")
+				.navigationBarTitleDisplayMode(.inline)
+				.toolbar {
+					ToolbarItem(placement: .cancellationAction) {
+						Button("Restore") {
+							pageLayout = originalPageLayout
+						}
+						.disabled(pageLayout == originalPageLayout)
+					}
+					ToolbarItem(placement: .confirmationAction) {
+						Button("Done") { dismiss() }
+					}
+				}
+				.onChange(of: pageLayout) { _, newValue in
+					onChange(newValue)
+				}
+		}
 	}
 }
 

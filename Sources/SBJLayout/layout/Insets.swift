@@ -1,10 +1,12 @@
 import CoreGraphics
+import SBJFoundation
 
+@SBJStructure
 public struct Insets: Sendable, Codable, Equatable, CustomStringConvertible {
-	public let left: CGFloat
-	public let right: CGFloat
-	public let top: CGFloat
-	public let bottom: CGFloat
+	public var left: CGFloat
+	public var right: CGFloat
+	public var top: CGFloat
+	public var bottom: CGFloat
 
 	public static let zero: Self = .init()
 

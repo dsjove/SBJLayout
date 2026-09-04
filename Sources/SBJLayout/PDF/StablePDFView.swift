@@ -1,15 +1,27 @@
 import SwiftUI
 import PDFKit
 
-/// Stable SwiftUI ownership for a PDFKit view. The PDFView survives unrelated
-/// SwiftUI updates and only receives a new document when document identity changes.
+/// Stable SwiftUI ownership for PDFKit's interactive `PDFView`.
+///
+/// UIKit/PDFKit view identity is intentionally contained here. SwiftUI callers
+/// interact through ``PDFViewController`` rather than receiving the raw view.
 public struct StablePDFView: UIViewRepresentable {
 	let document: PDFDocument
-	let onViewReady: @MainActor (PDFView) -> Void
+	let controller: PDFViewController?
+	let onReady: @MainActor () -> Void
 
-	public init(document: PDFDocument, onViewReady: @escaping @MainActor (PDFView) -> Void = { _ in }) {
+	public init(
+		document: PDFDocument,
+		controller: PDFViewController? = nil,
+		onReady: @escaping @MainActor () -> Void = {}
+	) {
 		self.document = document
-		self.onViewReady = onViewReady
+		self.controller = controller
+		self.onReady = onReady
+	}
+
+	public func makeCoordinator() -> Coordinator {
+		Coordinator(controller: controller)
 	}
 
 	public func makeUIView(context: Context) -> PDFView {
@@ -19,20 +31,31 @@ public struct StablePDFView: UIViewRepresentable {
 		view.displayDirection = .vertical
 		view.displaysPageBreaks = true
 		view.document = document
+		controller?.attach(view)
 		notifyWhenReady(view)
 		return view
 	}
 
 	public func updateUIView(_ view: PDFView, context: Context) {
+		if context.coordinator.controller !== controller {
+			context.coordinator.controller?.detach(view)
+			context.coordinator.controller = controller
+		}
 		if view.document !== document {
 			view.document = document
 		}
+		controller?.attach(view)
 		notifyWhenReady(view)
+	}
+
+	public static func dismantleUIView(_ view: PDFView, coordinator: Coordinator) {
+		coordinator.controller?.detach(view)
 	}
 
 	private func notifyWhenReady(_ view: PDFView) {
 		let expectedDocument = document
-		let onViewReady = onViewReady
+		let controller = controller
+		let onReady = onReady
 		Task { @MainActor in
 			// Let UIViewRepresentable finish applying the update and give PDFKit a
 			// run-loop turn to build/layout its document view before navigation.
@@ -40,12 +63,21 @@ public struct StablePDFView: UIViewRepresentable {
 			guard view.document === expectedDocument else { return }
 			view.layoutIfNeeded()
 			view.layoutDocumentView()
-			onViewReady(view)
+			controller?.refreshPageState()
+			onReady()
+		}
+	}
+
+	public final class Coordinator {
+		var controller: PDFViewController?
+
+		init(controller: PDFViewController?) {
+			self.controller = controller
 		}
 	}
 }
 
-public extension PDFView {
+extension PDFView {
 	/// Navigates to pagination geometry recorded in the UIGraphics coordinate space
 	/// used to create the PDF, converting it to the PDFPage coordinate space here.
 	@MainActor
@@ -69,11 +101,5 @@ public extension PDFView {
 			y: bounds.maxY - normalizedTop * bounds.height
 		)
 		go(to: PDFDestination(page: page, at: point))
-	}
-
-	@MainActor
-	func go(to sectionID: String?, positions: [String: PaginationPosition]) {
-		guard let sectionID, let position = positions[sectionID] else { return }
-		go(to: position)
 	}
 }

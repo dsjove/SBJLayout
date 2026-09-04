@@ -15,10 +15,12 @@ let package = Package(
         ),
     ],
     dependencies: [
+        .package(path: "../SBJFoundation"),
     ],
     targets: [
         .target(
             name: "SBJLayout",
+            dependencies: ["SBJFoundation"],
             swiftSettings: [
                 .enableUpcomingFeature("ApproachableConcurrency"),
                 .defaultIsolation(nil),

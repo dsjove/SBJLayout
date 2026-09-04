@@ -1,6 +1,10 @@
 import CoreGraphics
 
-//TODO: Feature - add size class to measure/draw for retries
+// TODO(Localization/Text fitting): measurement needs a presentation/size-class input
+// so a renderable can retry with alternate text candidates (full, compact,
+// abbreviated, multiline, etc.) without mutating the model or JCSText. The same
+// candidate-selection model should be shared with SBJFoundation/SwiftUI; Layout
+// remains responsible for Core Graphics measurement and retry decisions.
 public protocol Renderable: TrackElement {
 	// init should do any data transformations
 

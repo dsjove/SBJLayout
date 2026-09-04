@@ -1,5 +1,7 @@
 import Foundation
+import SBJFoundation
 
+@SBJStructure
 public struct PageLayout: Codable, Equatable, Sendable {
 	public var pageSize: PageSize
 	public var landscape: Bool

@@ -1,6 +1,8 @@
 # SBJLayout
 
-SBJLayout is a declarative, measure-once layout library for generating paginated PDF content on iOS. It wraps Core Graphics/UIKit/PDFKit rather than providing a reactive UI framework.
+SBJLayout is the SBJ framework for **newspaper/print-style paginated layout and PDF generation** on iOS. It is a declarative, measure-first layout engine over Core Graphics/UIKit/PDFKit rather than a reactive UI framework.
+
+SBJFoundation supplies shared platform primitives and presentation-resource semantics; SBJLayout owns print geometry, pagination, measurement, fitting, and PDF rendering.
 
 The core model is deliberately small:
 
@@ -11,7 +13,7 @@ The core model is deliberately small:
 - `Pagination` and `PaginationGroup` split measured content into pages.
 - `PDFGenerator` renders a `Renderable` tree into PDF data.
 - `JCSText`, `JCSImage`, `JCSRect`, and `JCSLine` provide basic UIKit/Core Graphics content and drawing wrappers.
-- `Jargon` supplies document-specific words and typed value formatters through the render environment.
+- `Jargon` is an experimental/legacy document-wording prototype retained temporarily while the shared SBJFoundation localization/presentation-resource design is developed.
 
 SBJLayout currently targets **iOS 17+** and requires **Swift 6.4**.
 
@@ -92,7 +94,7 @@ Cells beyond a row factory's `maxCount` are intentionally excluded. Minimum row 
 
 ## Text and images
 
-`JCSText` supports verbatim text, jargon lookup, typed jargon formatting, minimum character width, line-height constraints, and horizontal/vertical alignment.
+`JCSText` currently supports verbatim text plus the experimental Jargon lookup/formatting path, minimum character width, line-height constraints, and horizontal/vertical alignment. The planned shared-resource/fitting API is described in `LOCALIZATION_DESIGN.md`.
 
 `JCSImage` measures and renders a `UIImage` with `Aspect` behavior and optional rounded clipping. A nil image measures as zero for fit/fill layouts.
 
@@ -100,7 +102,7 @@ Cells beyond a row factory's `maxCount` are intentionally excluded. Minimum row 
 
 ## Jargon and render context
 
-`RenderableEnvironment` stores a task-local `RenderableContext` containing the active `Pagination` and `Jargon`.
+`Jargon` is retained as an experimental prototype, not the planned localization architecture. `RenderableEnvironment` currently stores a task-local `RenderableContext` containing the active `Pagination` and `Jargon`; the localization design replaces that text-policy role with a shared SBJFoundation presentation-resource context.
 
 ```swift
 let jargon = Jargon(
@@ -132,7 +134,7 @@ Pagination is measurement-driven: groups must be measured before their render po
 
 `PDFGenerator.render(...)` returns PDF `Data`. `form(...)` additionally creates a `PDFDocument` when PDFKit can open the rendered data.
 
-SwiftUI helpers are included for displaying a `PDFDocument`, keeping a stable `PDFView`, managing page navigation, and editing `PageLayout`.
+SwiftUI helpers are included for displaying a `PDFDocument`, keeping PDFKit behind a stable `UIViewRepresentable` bridge, managing it through `PDFViewController`, and editing `PageLayout`. Application chrome and overlays remain SwiftUI. See [PDF hosting](Documentation/PDF_HOSTING.md).
 
 ## Design assumptions and intentional limits
 
@@ -149,3 +151,12 @@ Run with a Swift 6.4 toolchain:
 ```sh
 swift test
 ```
+
+## Localization and text fitting design
+
+The planned shared localization/text-fitting architecture, including the future replacement for experimental `Jargon` and the `JCSText` measure/draw retry requirements, is documented in [LOCALIZATION_DESIGN.md](LOCALIZATION_DESIGN.md).
+
+
+## Documentation
+
+Design and architecture documents live in `Documents/`. The shared localization/presentation-resource work is described from Layout's perspective in [Documents/LOCALIZATION_DESIGN.md](Documents/LOCALIZATION_DESIGN.md).
