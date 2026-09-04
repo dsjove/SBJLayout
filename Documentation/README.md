@@ -9,3 +9,6 @@ Detailed architecture/design notes live in this directory.
 
 SBJFoundation owns shared platform and presentation-resource semantics. SBJLayout should keep
 its own APIs focused on layout geometry, pagination, measurement, fitting, and PDF rendering.
+
+
+- [Pre-localization audit](PRELOCALIZATION_AUDIT.md)

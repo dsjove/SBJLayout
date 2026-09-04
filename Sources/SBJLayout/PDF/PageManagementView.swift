@@ -1,4 +1,5 @@
 import SwiftUI
+import SBJFoundation
 
 /// SwiftUI page-navigation chrome for a ``StablePDFView``.
 ///
@@ -14,13 +15,13 @@ public struct PageManagementView: View {
 	public var body: some View {
 		HStack(spacing: 8) {
 			Button(action: controller.goToFirstPage) {
-				Image(systemName: "backward.end")
+				Image(.system("backward.end"))
 			}
 			.accessibilityLabel("First Page")
 			.disabled(!controller.canGoToPreviousPage)
 
 			Button(action: controller.goToPreviousPage) {
-				Image(systemName: "chevron.left")
+				Image(.system("chevron.left"))
 			}
 			.accessibilityLabel("Previous Page")
 			.disabled(!controller.canGoToPreviousPage)
@@ -31,13 +32,13 @@ public struct PageManagementView: View {
 				.accessibilityLabel("Page \(controller.currentPageNumber) of \(controller.pageCount)")
 
 			Button(action: controller.goToNextPage) {
-				Image(systemName: "chevron.right")
+				Image(.system("chevron.right"))
 			}
 			.accessibilityLabel("Next Page")
 			.disabled(!controller.canGoToNextPage)
 
 			Button(action: controller.goToLastPage) {
-				Image(systemName: "forward.end")
+				Image(.system("forward.end"))
 			}
 			.accessibilityLabel("Last Page")
 			.disabled(!controller.canGoToNextPage)
