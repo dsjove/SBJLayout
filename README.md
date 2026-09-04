@@ -134,7 +134,7 @@ Pagination is measurement-driven: groups must be measured before their render po
 
 `PDFGenerator.render(...)` returns PDF `Data`. `form(...)` additionally creates a `PDFDocument` when PDFKit can open the rendered data.
 
-SwiftUI helpers are included for displaying a `PDFDocument`, keeping PDFKit behind a stable `UIViewRepresentable` bridge, managing it through `PDFViewController`, and editing `PageLayout`. Application chrome and overlays remain SwiftUI. See [PDF hosting](Documentation/PDF_HOSTING.md).
+SwiftUI helpers are included for displaying a `PDFDocument`, keeping PDFKit behind a stable `UIViewRepresentable` bridge, managing it through `PDFViewController`, and editing `PageLayout`. Application chrome and overlays remain SwiftUI. See [PDF hosting](Documents/PDF_HOSTING.md).
 
 ## Design assumptions and intentional limits
 
@@ -154,9 +154,14 @@ swift test
 
 ## Localization and text fitting design
 
-The planned shared localization/text-fitting architecture, including the future replacement for experimental `Jargon` and the `JCSText` measure/draw retry requirements, is documented in [LOCALIZATION_DESIGN.md](LOCALIZATION_DESIGN.md).
+The planned shared localization/text-fitting architecture, including the future replacement for experimental `Jargon` and the `JCSText` measure/draw retry requirements, is documented in [Documents/LOCALIZATION_DESIGN.md](Documents/LOCALIZATION_DESIGN.md).
 
 
 ## Documentation
 
 Design and architecture documents live in `Documents/`. The shared localization/presentation-resource work is described from Layout's perspective in [Documents/LOCALIZATION_DESIGN.md](Documents/LOCALIZATION_DESIGN.md).
+
+
+## Physical units
+
+The layout engine continues to store geometry in PDF/Core Graphics points. Page-layout presentation now uses SBJFoundation `UnitValue<LengthUnit>` for conversion to inches or millimeters, and `PageLayout.pageWidth` / `pageHeight` expose physical dimensions as unit values. `PageLayoutEditorCore` also uses the shared `UnitValueControl` for margin editing, fixing the displayed unit to inches for North American/photo pages and millimeters for ISO A pages.

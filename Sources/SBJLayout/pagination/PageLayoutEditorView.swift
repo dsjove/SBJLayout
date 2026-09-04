@@ -1,5 +1,6 @@
 import SwiftUI
 import Foundation
+import SBJFoundation
 
 /// The reusable page-layout editor body.
 ///
@@ -47,7 +48,7 @@ public struct PageLayoutEditorCore: View {
 					pageLayout.pageSize = size
 				} label: {
 					if pageLayout.pageSize == size {
-						Label(size.description, systemImage: "checkmark")
+						Label(size.description, image: .system("checkmark"))
 					} else {
 						Text(size.description)
 					}
@@ -56,26 +57,12 @@ public struct PageLayoutEditorCore: View {
 		}
 	}
 
-	private enum MarginDisplayUnit {
-		case inches
-		case millimeters
-
-		var unitLength: UnitLength {
-			switch self {
-			case .inches: .inches
-			case .millimeters: .millimeters
-			}
-		}
-
-		var symbol: String { unitLength.symbol }
-	}
-
-	private var marginUnit: MarginDisplayUnit {
+	private var marginUnit: LengthUnit {
 		switch pageLayout.pageSize.category {
 		case .isoA:
-			.millimeters
+			.millimeter
 		case .northAmerican, .photo, .special, .custom:
-			.inches
+			.inch
 		}
 	}
 
@@ -83,39 +70,28 @@ public struct PageLayoutEditorCore: View {
 		HStack {
 			Text(title)
 			Spacer()
-			TextField(
-				title,
+			UnitValueControl(
 				value: marginBinding(keyPath),
-				format: .number.precision(.fractionLength(0...2))
+				units: [marginUnit],
+				accessibilityLabel: title
 			)
-			.textFieldStyle(.roundedBorder)
-			.multilineTextAlignment(.trailing)
-			.keyboardType(.decimalPad)
-			.frame(width: 90)
-			Text(marginUnit.symbol)
-				.foregroundStyle(.secondary)
-				.frame(width: 30, alignment: .leading)
 		}
 	}
 
-	private func marginBinding(_ keyPath: KeyPath<Insets, CGFloat>) -> Binding<Double> {
+	private func marginBinding(_ keyPath: KeyPath<Insets, CGFloat>) -> Binding<UnitValue<LengthUnit>> {
 		Binding(
 			get: {
-				Measurement(
-					value: Double(pageLayout.margins[keyPath: keyPath]),
-					unit: UnitLength.pdfPoints
+				UnitValue<LengthUnit>(
+					Double(pageLayout.margins[keyPath: keyPath]),
+					unit: .point
 				)
-				.converted(to: marginUnit.unitLength)
-				.value
+				.converted(to: marginUnit)
 			},
 			set: { displayedValue in
-				let points = Measurement(
-					value: max(0, displayedValue),
-					unit: marginUnit.unitLength
-				)
-				.converted(to: .pdfPoints)
-				.value
-				let value = CGFloat(points)
+				let points = displayedValue
+					.converted(to: .point)
+					.value
+				let value = CGFloat(max(0, points))
 				pageLayout.margins = Insets(
 					left: keyPath == \.left ? value : pageLayout.margins.left,
 					right: keyPath == \.right ? value : pageLayout.margins.right,
@@ -165,12 +141,4 @@ public struct PageLayoutEditorView: View {
 				}
 		}
 	}
-}
-
-private extension UnitLength {
-	/// PDF/Core Graphics points: 72 points per inch. UnitLength's base unit is meters.
-	static let pdfPoints = UnitLength(
-		symbol: "pt",
-		converter: UnitConverterLinear(coefficient: 0.0254 / 72.0)
-	)
 }
