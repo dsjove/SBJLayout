@@ -24,8 +24,7 @@ public struct PageLayoutEditorCore: View {
 					pageSizeMenuSection("Photo", sizes: PageSize.photo)
 				} label: {
 					LabeledContent("Page Size") {
-						Text(pageLayout.pageSize.description)
-							.foregroundStyle(.secondary)
+						SBJCompactMenuLabel(text: pageLayout.pageSize.description)
 					}
 				}
 				Toggle("Landscape", isOn: $pageLayout.landscape)
@@ -111,12 +110,12 @@ public struct PageLayoutEditorCore: View {
 public struct PageLayoutEditorView: View {
 	@Environment(\.dismiss) private var dismiss
 	@State private var pageLayout: PageLayout
-	private let originalPageLayout: PageLayout
+	@State private var originalPageLayout: PageLayout
 	private let onChange: (PageLayout) -> Void
 
 	public init(pageLayout: PageLayout, onChange: @escaping (PageLayout) -> Void) {
 		_pageLayout = State(initialValue: pageLayout)
-		originalPageLayout = pageLayout
+		_originalPageLayout = State(initialValue: pageLayout)
 		self.onChange = onChange
 	}
 
