@@ -94,7 +94,7 @@ Cells beyond a row factory's `maxCount` are intentionally excluded. Minimum row 
 
 ## Text and images
 
-`JCSText` currently supports verbatim text plus the experimental Jargon lookup/formatting path, minimum character width, line-height constraints, and horizontal/vertical alignment. The planned shared-resource/fitting API is defined canonically in `SBJFoundation/Documentation/LOCALIZATION_AND_PRESENTATION_RESOURCES.md`; `Documentation/LOCALIZATION_DESIGN.md` is only a local navigation stub.
+`JCSText` currently supports verbatim text plus the experimental Jargon lookup/formatting path, minimum character width, line-height constraints, and horizontal/vertical alignment. The planned shared-resource/fitting API is described in `LOCALIZATION_DESIGN.md`.
 
 `JCSImage` measures and renders a `UIImage` with `Aspect` behavior and optional rounded clipping. A nil image measures as zero for fit/fill layouts.
 
@@ -154,12 +154,12 @@ swift test
 
 ## Localization and text fitting design
 
-The planned shared localization/text-fitting architecture, including the future replacement for experimental `Jargon` and the `JCSText` measure/draw retry requirements, is defined canonically in `SBJFoundation/Documentation/LOCALIZATION_AND_PRESENTATION_RESOURCES.md`. `Documentation/LOCALIZATION_DESIGN.md` remains only as a navigation stub.
+The planned shared localization/text-fitting architecture, including the future replacement for experimental `Jargon` and the `JCSText` measure/draw retry requirements, is documented in [Documentation/LOCALIZATION_DESIGN.md](Documentation/LOCALIZATION_DESIGN.md).
 
 
 ## Documentation
 
-Design and architecture documents live in `Documentation/`. Shared localization/presentation-resource design is intentionally centralized in `SBJFoundation/Documentation/LOCALIZATION_AND_PRESENTATION_RESOURCES.md`.
+Design and architecture documents live in `Documentation/`. The shared localization/presentation-resource work is described from Layout's perspective in [Documentation/LOCALIZATION_DESIGN.md](Documentation/LOCALIZATION_DESIGN.md).
 
 
 ## Physical units
