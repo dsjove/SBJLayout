@@ -1,5 +1,7 @@
 # Pre-Localization Audit
 
+> **Non-normative inventory/checklist.** Canonical localization and presentation-resource design lives in `SBJFoundation/Documentation/LOCALIZATION_AND_PRESENTATION_RESOURCES.md`.
+
 ## Formatting and locale
 
 SBJLayout currently has no locale-dependent number/date formatter usage in active source. This is desirable: Layout should measure/render resolved presentation candidates rather than decide locale policy.

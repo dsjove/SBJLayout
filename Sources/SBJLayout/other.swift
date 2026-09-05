@@ -2,12 +2,6 @@ import CoreGraphics
 
 //Useful?
 
-enum SizeClass {
-	case compact
-	case regular
-	case large
-}
-
 public enum JCSAPlacement {
 	case leading
 	case center

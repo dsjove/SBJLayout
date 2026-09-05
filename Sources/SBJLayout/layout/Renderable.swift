@@ -1,4 +1,5 @@
 import CoreGraphics
+import SBJFoundation
 
 // TODO(Localization/Text fitting): measurement needs a presentation/size-class input
 // so a renderable can retry with alternate text candidates (full, compact,
