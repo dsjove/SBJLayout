@@ -219,7 +219,7 @@ Add tests that cover:
 The completed pre-localization audit is folded into this document. The active Layout-specific migration surface is intentionally small:
 
 - Active source contains no locale-dependent number/date formatter policy. Keep it that way; Layout consumes resolved/formattable presentation resources rather than choosing locale policy.
-- Page-management symbols already route through SBJFoundation `ImageName`.
+- Page-management symbols already route through SBJFoundation `ImageReference`.
 - Page-navigation accessibility labels are framework-owned vocabulary and should move to shared text resources.
 - `Jargon` is still wired through `RenderableContext` and `PDFGenerator`; it is therefore migration code, not dead code. Its useful sparse-override behavior is evidence for the shared resolver, but domain terminology must leave SBJLayout once the shared context is available.
 - The future candidate-selection implementation must test that the exact candidate chosen during measurement is reused during drawing and pagination.

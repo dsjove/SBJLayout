@@ -19,9 +19,12 @@ public struct PageLayoutEditorCore: View {
 		Form {
 			Section("Page") {
 				Menu {
-					pageSizeMenuSection("North American", sizes: PageSize.northAmerican)
-					pageSizeMenuSection("ISO A", sizes: PageSize.isoA)
-					pageSizeMenuSection("Photo", sizes: PageSize.photo)
+					Group {
+						pageSizeMenuSection("North American", sizes: PageSize.northAmerican)
+						pageSizeMenuSection("ISO A", sizes: PageSize.isoA)
+						pageSizeMenuSection("Photo", sizes: PageSize.photo)
+					}
+					.labelStyle(.titleAndIcon)
 				} label: {
 					LabeledContent("Page Size") {
 						SBJCompactMenuLabel(text: pageLayout.pageSize.description)
