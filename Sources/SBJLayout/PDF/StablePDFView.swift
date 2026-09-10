@@ -25,7 +25,7 @@ public struct StablePDFView: UIViewRepresentable {
 	}
 
 	public func makeUIView(context: Context) -> PDFView {
-		let view = PDFView()
+		let view = FitClampedPDFView()
 		view.autoScales = true
 		view.displayMode = .singlePageContinuous
 		view.displayDirection = .vertical
@@ -45,6 +45,7 @@ public struct StablePDFView: UIViewRepresentable {
 			view.document = document
 		}
 		controller?.attach(view)
+		view.sbjClampMinimumScaleToFit()
 		notifyWhenReady(view)
 	}
 
@@ -63,6 +64,7 @@ public struct StablePDFView: UIViewRepresentable {
 			guard view.document === expectedDocument else { return }
 			view.layoutIfNeeded()
 			view.layoutDocumentView()
+			view.sbjClampMinimumScaleToFit()
 			controller?.refreshPageState()
 			onReady()
 		}
@@ -73,6 +75,68 @@ public struct StablePDFView: UIViewRepresentable {
 
 		init(controller: PDFViewController?) {
 			self.controller = controller
+		}
+	}
+}
+
+/// Stable single-page PDF hosting for readers that compose pages themselves,
+/// such as a facing-page/book presentation.
+public struct StablePDFPageView: UIViewRepresentable {
+	let document: PDFDocument
+	let pageIndex: Int
+
+	public init(document: PDFDocument, pageIndex: Int) {
+		self.document = document
+		self.pageIndex = pageIndex
+	}
+
+	public func makeUIView(context: Context) -> PDFView {
+		let view = FitClampedPDFView()
+		view.autoScales = true
+		view.displayMode = .singlePage
+		view.displayDirection = .vertical
+		view.displaysPageBreaks = false
+		return view
+	}
+
+	public func updateUIView(_ view: PDFView, context: Context) {
+		if view.document !== document {
+			view.document = document
+		}
+		guard let page = document.page(at: pageIndex) else { return }
+		if view.currentPage !== page {
+			view.go(to: page)
+		}
+		view.sbjClampMinimumScaleToFit()
+	}
+}
+
+/// PDFKit's default minimum zoom permits shrinking a page smaller than its
+/// fitted viewport. For a document reader that state is only empty canvas, so
+/// make the current size-to-fit scale the pinch-to-zoom floor.
+@MainActor
+private final class FitClampedPDFView: PDFView {
+	override func layoutSubviews() {
+		super.layoutSubviews()
+		sbjClampMinimumScaleToFit()
+	}
+}
+
+private extension PDFView {
+	@MainActor
+	func sbjClampMinimumScaleToFit() {
+		guard document != nil, bounds.width > 0, bounds.height > 0 else { return }
+		let fittedScale = scaleFactorForSizeToFit
+		guard fittedScale.isFinite, fittedScale > 0 else { return }
+
+		if maxScaleFactor < fittedScale {
+			maxScaleFactor = fittedScale
+		}
+		if minScaleFactor != fittedScale {
+			minScaleFactor = fittedScale
+		}
+		if scaleFactor < fittedScale {
+			scaleFactor = fittedScale
 		}
 	}
 }

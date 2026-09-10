@@ -38,3 +38,15 @@ In particular, a highlight corresponding to a `PaginationPosition` should reques
 ## Why geometry conversion remains in the bridge
 
 A `PaginationPosition` is recorded in the Core Graphics coordinate space used to generate the PDF. Its on-screen rectangle depends on PDFKit state including page bounds, display box, zoom, scrolling, page spacing, and display mode. Conversion therefore belongs beside `PDFView`, even though the visual decoration using that rectangle belongs in SwiftUI.
+
+## Minimum zoom policy
+
+SBJLayout's interactive PDF hosts clamp PDFKit's minimum scale to the current
+`scaleFactorForSizeToFit`. A reader may zoom in, but cannot pinch a page smaller
+than the viewport-fitting scale because that state only exposes empty canvas.
+The clamp is recalculated during `PDFView` layout, so the floor follows rotation,
+window resizing, split-view changes, and other viewport changes.
+
+`StablePDFPageView` provides the same behavior for callers composing individual
+pages into a book/facing-page presentation without exposing the underlying
+`PDFView` to application SwiftUI.
