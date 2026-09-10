@@ -7,6 +7,9 @@ let package = Package(
     name: "SBJLayout",
     platforms: [
         .iOS(.v17),
+        .watchOS(.v10),
+        .visionOS(.v1),
+        .tvOS(.v17),
     ],
     products: [
         .library(

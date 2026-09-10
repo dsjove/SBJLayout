@@ -1,3 +1,4 @@
+#if !os(watchOS)
 import Observation
 import PDFKit
 
@@ -182,3 +183,4 @@ private extension CGRect {
 			&& abs(height - other.height) <= tolerance
 	}
 }
+#endif

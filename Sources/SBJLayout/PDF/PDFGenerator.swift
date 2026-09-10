@@ -1,3 +1,4 @@
+#if !os(watchOS)
 import Foundation
 import SBJFoundation
 import PDFKit
@@ -112,3 +113,4 @@ public extension PDFRenderResult {
 		return true
 	}
 }
+#endif

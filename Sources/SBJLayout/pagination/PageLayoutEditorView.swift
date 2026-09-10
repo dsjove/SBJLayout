@@ -1,3 +1,4 @@
+#if !os(watchOS)
 import SwiftUI
 import Foundation
 import SBJFoundation
@@ -126,7 +127,7 @@ public struct PageLayoutEditorView: View {
 		NavigationStack {
 			PageLayoutEditorCore(pageLayout: $pageLayout)
 				.navigationTitle("Page Layout")
-				.navigationBarTitleDisplayMode(.inline)
+				.sbjInlineNavigationTitle()
 				.toolbar {
 					ToolbarItem(placement: .cancellationAction) {
 						Button("Restore") {
@@ -144,3 +145,4 @@ public struct PageLayoutEditorView: View {
 		}
 	}
 }
+#endif

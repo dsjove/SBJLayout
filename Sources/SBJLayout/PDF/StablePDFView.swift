@@ -1,3 +1,4 @@
+#if !os(watchOS)
 import SwiftUI
 import PDFKit
 
@@ -167,3 +168,4 @@ extension PDFView {
 		go(to: PDFDestination(page: page, at: point))
 	}
 }
+#endif
