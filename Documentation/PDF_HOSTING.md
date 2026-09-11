@@ -1,19 +1,24 @@
 # SwiftUI PDF Hosting
 
-SBJLayout renders PDFs with Core Graphics, but interactive display uses PDFKit. PDFKit's interactive viewer is `PDFView`, a UIKit class on iOS, so one UIKit bridge is intentionally retained.
+SBJLayout renders PDFs with Core Graphics and owns the generic reusable SwiftUI/PDFKit presentation layer. Applications choose presentation policy (for example, whether a particular idiom/window size should use a continuous reader or a two-page book), but they should not reimplement PDF viewers, page grouping, page navigation, document transitions, or pagination-position navigation.
 
 The hosting boundary is:
 
 ```text
-SwiftUI presentation / chrome / overlays
-                ↓
-        StablePDFView
-        (UIViewRepresentable)
-                ↓
-            PDFView
+application layout policy
+        ↓
+PDFPresentationView / PDFPagedView / PageManagementView
+        ↓
+PDFPresentationController / PDFViewController / PDFPagedViewController
+        ↓
+StablePDFView / PDFPageView
+        ↓
+PDFView
 ```
 
-`PDFViewController` is the SwiftUI-facing control surface for that bridge. It owns the weak `PDFView` reference and contains PDFKit-specific behavior:
+## Continuous PDFs
+
+`StablePDFView` owns the interactive PDFKit `PDFView` used for continuous scrolling. `PDFViewController` is the SwiftUI-facing control surface for that bridge. It owns the weak `PDFView` reference and contains PDFKit-specific behavior:
 
 - first/previous/next/last-page navigation;
 - current-page observation;
@@ -21,32 +26,35 @@ SwiftUI presentation / chrome / overlays
 - conversion from generated-PDF geometry into the displayed `PDFView` coordinate system;
 - waiting for PDFKit destination navigation to visually settle when converted geometry is needed.
 
-Raw `PDFView` instances should not escape from `StablePDFView` into application SwiftUI. Application presentation code should use `PDFViewController` instead.
+Raw `PDFView` instances should not escape from SBJLayout into application SwiftUI.
 
-## What stays in SwiftUI
+## Paged and facing-page PDFs
 
-PDF-related application UI that is not intrinsically a PDFKit operation belongs in SwiftUI. Examples include:
+`PDFPagedView` composes a fixed number of pages side-by-side. The number of pages is data (`pagesPerView`), not a separate presentation type. A value of 1 is a single-page reader; 2 is a facing-page/book reader.
 
-- document cross-fades;
-- section-selection highlights;
-- toolbar composition;
-- transient overlays and decoration;
-- application selection/focus semantics.
+`PDFPagedViewController` owns grouped-page navigation and normalizes its first visible page to the current group size. Do not introduce separate single-page and dual-page controllers/views when `pagesPerView` expresses the difference.
 
-In particular, a highlight corresponding to a `PaginationPosition` should request its converted rectangle from `PDFViewController` and draw/animate the highlight as a SwiftUI overlay. It should not add a UIKit subview to `PDFView`.
+`PDFPageView` is the low-level host for one PDF page used by `PDFPagedView`. `StablePDFPageView` remains only as a compatibility typealias.
 
-## Why geometry conversion remains in the bridge
+## Shared presentation state
 
-A `PaginationPosition` is recorded in the Core Graphics coordinate space used to generate the PDF. Its on-screen rectangle depends on PDFKit state including page bounds, display box, zoom, scrolling, page spacing, and display mode. Conversion therefore belongs beside `PDFView`, even though the visual decoration using that rectangle belongs in SwiftUI.
+`PDFPresentationController<Input, PositionID>` owns reusable presentation mechanics that should not be duplicated in applications:
+
+- current/outgoing document replacement state;
+- cross-fade state;
+- continuous and paged navigation controllers;
+- deferred navigation to generated `PaginationPosition` values;
+- viewport-resize re-navigation while PDFKit settles;
+- transient highlight geometry and animation state.
+
+`PDFPresentationView` renders that state. Its style is either `.continuous` or `.paged(pagesPerView:)`.
+
+Applications remain responsible for deciding which style to use based on idiom, size, window arrangement, or product semantics.
+
+## Shared page chrome
+
+Both `PDFViewController` and `PDFPagedViewController` conform to `PDFPageNavigating`. `PageManagementView` is generic over that protocol, so the same button builder/chrome is used for continuous, one-page, and multi-page presentations.
 
 ## Minimum zoom policy
 
-SBJLayout's interactive PDF hosts clamp PDFKit's minimum scale to the current
-`scaleFactorForSizeToFit`. A reader may zoom in, but cannot pinch a page smaller
-than the viewport-fitting scale because that state only exposes empty canvas.
-The clamp is recalculated during `PDFView` layout, so the floor follows rotation,
-window resizing, split-view changes, and other viewport changes.
-
-`StablePDFPageView` provides the same behavior for callers composing individual
-pages into a book/facing-page presentation without exposing the underlying
-`PDFView` to application SwiftUI.
+SBJLayout's PDFKit hosts clamp the minimum scale to the current `scaleFactorForSizeToFit`. A reader may zoom in, but cannot pinch a page smaller than its fitted viewport because that state only exposes empty canvas. The clamp is recalculated during `PDFView` layout so the floor follows rotation, window resizing, split-view changes, and other viewport changes.

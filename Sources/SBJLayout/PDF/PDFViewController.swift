@@ -9,7 +9,7 @@ import PDFKit
 /// on UIKit/PDFKit view identity.
 @Observable
 @MainActor
-public final class PDFViewController {
+public final class PDFViewController: PDFPageNavigating {
 	public private(set) var currentPageNumber = 0
 	public private(set) var pageCount = 0
 
@@ -17,6 +17,20 @@ public final class PDFViewController {
 	private var pageChangeTask: Task<Void, Never>?
 
 	public init() {}
+
+	public var pageLabel: String {
+		guard pageCount > 0, currentPageNumber > 0 else { return "" }
+		return "\(currentPageNumber)/\(pageCount)"
+	}
+
+	public var pageAccessibilityLabel: String {
+		guard pageCount > 0, currentPageNumber > 0 else { return "No pages" }
+		return "Page \(currentPageNumber) of \(pageCount)"
+	}
+
+	public var canGoBackward: Bool { canGoToPreviousPage }
+	public var canGoForward: Bool { canGoToNextPage }
+
 	public var canGoToPreviousPage: Bool {
 		pdfView != nil && currentPageNumber > 1
 	}

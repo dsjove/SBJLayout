@@ -2,14 +2,12 @@
 import SwiftUI
 import SBJFoundation
 
-/// SwiftUI page-navigation chrome for a ``StablePDFView``.
-///
-/// The view deliberately knows nothing about PDFKit's `PDFView`; all viewer
-/// mechanics are contained by ``PDFViewController``.
-public struct PageManagementView: View {
-	@Bindable var controller: PDFViewController
+/// Shared SwiftUI page-navigation chrome for any SBJLayout PDF navigation controller.
+/// The same builder is used for continuous documents and grouped page presentations.
+public struct PageManagementView<Controller: PDFPageNavigating>: View {
+	@Bindable var controller: Controller
 
-	public init(controller: PDFViewController) {
+	public init(controller: Controller) {
 		self.controller = controller
 	}
 
@@ -19,30 +17,30 @@ public struct PageManagementView: View {
 				Image(.system("backward.end"))
 			}
 			.accessibilityLabel("First Page")
-			.disabled(!controller.canGoToPreviousPage)
+			.disabled(!controller.canGoBackward)
 
 			Button(action: controller.goToPreviousPage) {
 				Image(.system("chevron.left"))
 			}
 			.accessibilityLabel("Previous Page")
-			.disabled(!controller.canGoToPreviousPage)
+			.disabled(!controller.canGoBackward)
 
-			Text("\(controller.currentPageNumber)/\(controller.pageCount)")
+			Text(controller.pageLabel)
 				.monospacedDigit()
 				.fixedSize()
-				.accessibilityLabel("Page \(controller.currentPageNumber) of \(controller.pageCount)")
+				.accessibilityLabel(controller.pageAccessibilityLabel)
 
 			Button(action: controller.goToNextPage) {
 				Image(.system("chevron.right"))
 			}
 			.accessibilityLabel("Next Page")
-			.disabled(!controller.canGoToNextPage)
+			.disabled(!controller.canGoForward)
 
 			Button(action: controller.goToLastPage) {
 				Image(.system("forward.end"))
 			}
 			.accessibilityLabel("Last Page")
-			.disabled(!controller.canGoToNextPage)
+			.disabled(!controller.canGoForward)
 		}
 	}
 }

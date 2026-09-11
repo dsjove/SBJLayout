@@ -82,7 +82,7 @@ public struct StablePDFView: UIViewRepresentable {
 
 /// Stable single-page PDF hosting for readers that compose pages themselves,
 /// such as a facing-page/book presentation.
-public struct StablePDFPageView: UIViewRepresentable {
+public struct PDFPageView: UIViewRepresentable {
 	let document: PDFDocument
 	let pageIndex: Int
 
@@ -111,6 +111,10 @@ public struct StablePDFPageView: UIViewRepresentable {
 		view.sbjClampMinimumScaleToFit()
 	}
 }
+
+/// Compatibility name retained for callers that host an individual page directly.
+@available(*, deprecated, renamed: "PDFPageView")
+public typealias StablePDFPageView = PDFPageView
 
 /// PDFKit's default minimum zoom permits shrinking a page smaller than its
 /// fitted viewport. For a document reader that state is only empty canvas, so
