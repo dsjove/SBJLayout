@@ -10,6 +10,10 @@ public extension CGFloat {
 	var unboundedDescription: String {
 		isUnbounded ? "∞" : "\(self)"
 	}
+
+	func subtractingIfBounded(_ values: CGFloat...) -> CGFloat {
+		isUnbounded ? self : values.reduce(self, -)
+	}
 }
 
 public extension CGSize {

@@ -149,8 +149,8 @@ public enum PageSize: Sendable, Codable, Hashable, CustomStringConvertible {
 	public func rect(landscape: Bool, margin: Insets) -> CGRect {
 		let x = margin.left
 		let y = margin.top
-		let w = Self.subtractMargins(from: size.width, margin.left, margin.right)
-		let h = Self.subtractMargins(from: size.height, margin.top, margin.bottom)
+		let w = size.width.subtractingIfBounded(margin.left, margin.right)
+		let h = size.height.subtractingIfBounded(margin.top, margin.bottom)
 		return CGRect(
 			x: landscape ? y : x,
 			y: landscape ? x : y,
@@ -192,7 +192,4 @@ public enum PageSize: Sendable, Codable, Hashable, CustomStringConvertible {
 		CGSize(width: width * 72, height: height * 72)
 	}
 
-	private static func subtractMargins(from value: CGFloat, _ first: CGFloat, _ second: CGFloat) -> CGFloat {
-		value.isUnbounded ? value : value - first - second
-	}
 }
