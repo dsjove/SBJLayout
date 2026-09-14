@@ -4,36 +4,37 @@ import CoreGraphics
 // TODO: Feature - Wrapping header duplication?
 // TODO: Feature - identifiable reducers and groupings for uniform Tracks
 // TODO: Feature - draw placeholder tracks to bounded edge (like min track)
-
-// Custom Columns Features Remaining ...
-// TODO: Feature - Track Spans
-// TODO: Feature - cross grid sizing sync
 // TODO: Feature - dynamic gaps that fill (like SwiftUI spacer)
+
+// 'Custom Columns' In-Scope Features Remaining...
+// TODO: Feature - Track Spans
 // TODO: Feature - 'best fit' intrinsic size (allow 3, algorithm TBD)
 // TODO: Feature - lexical alignment across cells
 
-//Some cells will draw this debug rect not reorigined with page
-nonisolated(unsafe) internal var drawCells = false
-nonisolated(unsafe) internal var drawAllocated = false
-
 /*
-Custom Columns features not in scope...
+'Custom Columns' features not in scope...
 
-Dynamic live large sets of data
+Dynamic live large sets of data ('Grid' is not a UI solution)
 1) Cell needs to become hashable so we can effectly detect content changes for remeasuring
-2) Cell needs to become identifiable so we can track movement (sorting, column mapping, adding, removing)
+2) Cell needs to become identifiable so we can track movement
 3) Cells on init should become a factory like cols and rows
 4) Then we need to detect if the change requires invalidating measurements or just redraw
 5) The changes need to be additive and throttled to a f/s
+6) Column-Mapping/Row-Sort view-model and size caching
 
-Sticky Columns (easily done today and may have use)
+Sticky Columns (only useful for UI content scrolling)
 1) GridLayout would need to know scroll position
 2) Iteration would have to be aware of -1 origin
 3) Track would need bool
 
-Split tables
+Split tables (only useful for UI content scrolling)
 1) This would require a design change of 'origin groupings'
+2) or cross grid sizing/pos sync
 */
+
+//Some cells will draw this debug rect not reorigined on new page
+nonisolated(unsafe) internal var debugDrawCells = false
+nonisolated(unsafe) internal var debugDrawAllocated = false
 
 public extension Grid {
 //MARK: Convenience inits
@@ -129,7 +130,7 @@ public extension Grid {
 public extension GridDefinition<TrackedElement>.CellIteration {
 	func render() {
 		cell?.element.render(in: rect, measured: content, align: alignment)
-if drawCells {
+if debugDrawCells {
 	JCSRect(stroke: .red , lineWidth: 0.5).draw(in: rect)
 }
 	}
@@ -223,7 +224,7 @@ public struct Grid: Renderable {
 	public func render(in allocated: CGRect, measured: CGSize, align: Alignment) {
 		let definition = layout.resolvedDefinition(for: measured)
 		let positioned = align.apply(size: definition.size, in: allocated)
-if drawAllocated {
+if debugDrawAllocated {
 	JCSRect(stroke: .blue.withAlphaComponent(0.5) , lineWidth: 1.5).draw(in: positioned)
 }
 		definition.iterate(
