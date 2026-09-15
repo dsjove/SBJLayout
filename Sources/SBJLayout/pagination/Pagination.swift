@@ -53,6 +53,8 @@ public class Pagination {
 	public let contentRect: CGRect
 
 	public var pageNumber: Int { pages.count }
+	/// One-based source page number currently being rendered.
+	public var currentPageNumber: Int { max(1, sourcePageIndex + 1) }
 	public private(set) var positions: [String: PaginationPosition] = [:]
 
 	private var nextGroupOrder = 0
