@@ -12,6 +12,7 @@ The core model is deliberately small:
 - `Insets`, `Alignment`, `Aspect`, and `AspectRatio` provide reusable geometry behavior.
 - `Pagination` and `PaginationGroup` split measured content into pages.
 - `PDFGenerator` renders a `Renderable` tree into PDF data.
+- `PDFLink` adds hyperlink annotations around renderables without leaking Core Graphics PDF context handling to clients.
 - `JCSText`, `JCSImage`, `JCSRect`, and `JCSLine` provide basic UIKit/Core Graphics content and drawing wrappers.
 - `Jargon` is an experimental/legacy document-wording prototype retained temporarily while the shared SBJFoundation localization/presentation-resource design is developed.
 
@@ -132,7 +133,7 @@ Pagination is measurement-driven: groups must be measured before their render po
 
 ## PDF generation
 
-`PDFGenerator.render(...)` returns PDF `Data`. `form(...)` additionally creates a `PDFDocument` when PDFKit can open the rendered data.
+`PDFGenerator.render(...)` returns PDF `Data`. `form(...)` additionally creates a `PDFDocument` when PDFKit can open the rendered data. The generator also accepts optional title/creator metadata so clients do not need a second PDF-rendering layer solely to set document metadata.
 
 SwiftUI helpers are included for displaying a `PDFDocument`, keeping PDFKit behind a stable `UIViewRepresentable` bridge, managing it through `PDFViewController`, and editing `PageLayout`. Application chrome and overlays remain SwiftUI. See [PDF hosting](Documentation/PDF_HOSTING.md).
 

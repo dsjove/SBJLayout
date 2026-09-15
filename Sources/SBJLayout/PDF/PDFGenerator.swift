@@ -17,11 +17,17 @@ public struct PDFRenderResult {
 
 public struct PDFGenerator {
 	public let pageLayout: PageLayout
+	public let title: String?
+	public let creator: String?
 
 	public init(
-		pageLayout: PageLayout = .init()
+		pageLayout: PageLayout = .init(),
+		title: String? = nil,
+		creator: String? = nil
 	) {
 		self.pageLayout = pageLayout
+		self.title = title
+		self.creator = creator
 	}
 
 	public func render(
@@ -57,7 +63,12 @@ public struct PDFGenerator {
 		_ paging: ((Pagination) -> ())?
 	) -> (data: Data, positions: [String: PaginationPosition]) {
 		let pageRect = pageLayout.pageSize.rect(landscape: pageLayout.landscape, margin: .zero)
-		let renderer = UIGraphicsPDFRenderer(bounds: pageRect)
+		let format = UIGraphicsPDFRendererFormat()
+		var documentInfo: [String: Any] = [:]
+		if let title { documentInfo[kCGPDFContextTitle as String] = title }
+		if let creator { documentInfo[kCGPDFContextCreator as String] = creator }
+		format.documentInfo = documentInfo
+		let renderer = UIGraphicsPDFRenderer(bounds: pageRect, format: format)
 		var positions: [String: PaginationPosition] = [:]
 		let data = renderer.pdfData { context in
 			let pagination = Pagination(layout: pageLayout, insets: insets, pages: pages) {
