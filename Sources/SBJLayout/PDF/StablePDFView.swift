@@ -30,7 +30,7 @@ public struct StablePDFView: UIViewRepresentable {
 		view.autoScales = true
 		view.displayMode = .singlePageContinuous
 		view.displayDirection = .vertical
-		view.displaysPageBreaks = true
+		view.displaysPageBreaks = false
 		view.document = document
 		controller?.attach(view)
 		notifyWhenReady(view)

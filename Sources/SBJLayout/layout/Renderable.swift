@@ -6,7 +6,7 @@ import SBJFoundation
 // abbreviated, multiline, etc.) without mutating the model or JCSText. The same
 // candidate-selection model should be shared with SBJFoundation/SwiftUI; Layout
 // remains responsible for Core Graphics measurement and retry decisions.
-public protocol Renderable: TrackElement {
+public protocol Renderable: TrackElement, Chrome {
 	// init should do any data transformations
 
 	// TrackElement measures
@@ -20,11 +20,6 @@ public extension Renderable {
 		measure(bounds: .unbounded)
 	}
 
-	// Does not measure, uses allocated size if no measurement supplied
-	func render(in allocated: CGRect, measured: CGSize? = nil, align: Alignment = .leftTop) {
-		render(in: allocated, measured: measured ?? allocated.size, align: align)
-	}
-
 	// Auto measures, draws at origin, and returns allocated rect at origin
 	@discardableResult
 	func draw(at origin: CGPoint, bounds: CGSize = .unbounded, align: Alignment = .leftTop) -> CGRect {
@@ -32,18 +27,6 @@ public extension Renderable {
 		let allocated = CGRect(origin: origin, size: measured)
 		render(in: allocated, measured: measured, align: align)
 		return allocated
-	}
-
-	static var context: RenderableContext {
-		RenderableEnvironment.context
-	}
-
-	static var pagination: Pagination {
-		Self.context.pagination
-	}
-
-	static var jargon: Jargon {
-		context.jargon
 	}
 }
 

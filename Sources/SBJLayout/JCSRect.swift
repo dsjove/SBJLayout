@@ -2,7 +2,7 @@ import CoreGraphics
 import UIKit
 
 //TODO: API - this is more of a drawing trait than an entity and not a rectangle
-public struct JCSRect {
+public struct JCSRect: Chrome {
 	public let fill: UIColor
 	public let stroke: UIColor
 	public let lineWidth: CGFloat
@@ -18,6 +18,10 @@ public struct JCSRect {
 		self.stroke = stroke
 		self.lineWidth = lineWidth
 		self.radius = radius
+	}
+
+	public func render(in allocated: CGRect, measured: CGSize, align: Alignment) {
+		draw(in: allocated)
 	}
 
 	@discardableResult

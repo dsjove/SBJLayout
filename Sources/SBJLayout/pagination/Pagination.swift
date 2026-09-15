@@ -52,9 +52,18 @@ public class Pagination {
 	public var printableRect: CGRect { layout.printableRect }
 	public let contentRect: CGRect
 
-	public var pageNumber: Int { pages.count }
+	/// Total number of source pages determined by measurement.
+	public var pageCount: Int { pages.count }
+	/// Retained compatibility name for the measured source page count.
+	public var pageNumber: Int { pageCount }
+	/// Zero-based source page index currently being rendered.
+	public var currentPageIndex: Int? { sourcePageIndex >= 0 ? sourcePageIndex : nil }
 	/// One-based source page number currently being rendered.
 	public var currentPageNumber: Int { max(1, sourcePageIndex + 1) }
+	public var currentPageContext: PageContext? {
+		guard let currentPageIndex else { return nil }
+		return PageContext(index: currentPageIndex, number: currentPageIndex + 1, count: pageCount)
+	}
 	public private(set) var positions: [String: PaginationPosition] = [:]
 
 	private var nextGroupOrder = 0
