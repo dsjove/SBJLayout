@@ -31,7 +31,7 @@ public struct StablePDFView: UIViewRepresentable {
 		view.displayMode = .singlePageContinuous
 		view.displayDirection = .vertical
 		view.displaysPageBreaks = false
-		view.document = document
+		view.sbjSetDocumentWhenLaidOut(document)
 		controller?.attach(view)
 		notifyWhenReady(view)
 		return view
@@ -43,7 +43,7 @@ public struct StablePDFView: UIViewRepresentable {
 			context.coordinator.controller = controller
 		}
 		if view.document !== document {
-			view.document = document
+			view.sbjSetDocumentWhenLaidOut(document)
 		}
 		controller?.attach(view)
 		view.sbjClampMinimumScaleToFit()
@@ -59,11 +59,12 @@ public struct StablePDFView: UIViewRepresentable {
 		let controller = controller
 		let onReady = onReady
 		Task { @MainActor in
-			// Let UIViewRepresentable finish applying the update and give PDFKit a
-			// run-loop turn to build/layout its document view before navigation.
+			// Let UIViewRepresentable receive its viewport before forcing layout.
+			// FitClampedPDFView installs the pending document during that layout pass,
+			// before PDFKit has rendered an incorrectly positioned document.
 			await Task.yield()
-			guard view.document === expectedDocument else { return }
 			view.layoutIfNeeded()
+			guard view.document === expectedDocument else { return }
 			view.layoutDocumentView()
 			view.sbjClampMinimumScaleToFit()
 			controller?.refreshPageState()
@@ -121,9 +122,60 @@ public typealias StablePDFPageView = PDFPageView
 /// make the current size-to-fit scale the pinch-to-zoom floor.
 @MainActor
 private final class FitClampedPDFView: PDFView {
+	private var pendingDocument: PDFDocument?
+	private var alignsPendingDocumentToTop = false
+	private var isInstallingPendingDocument = false
+
 	override func layoutSubviews() {
+		installPendingDocumentIfPossible()
 		super.layoutSubviews()
 		sbjClampMinimumScaleToFit()
+		alignPendingDocumentToTopIfNeeded()
+	}
+
+	func setDocumentWhenLaidOut(_ document: PDFDocument) {
+		guard self.document !== document || pendingDocument !== document else { return }
+		pendingDocument = document
+		alignsPendingDocumentToTop = true
+		setNeedsLayout()
+	}
+
+	private func installPendingDocumentIfPossible() {
+		guard !isInstallingPendingDocument,
+			let pendingDocument,
+			bounds.width > 0, bounds.height > 0
+		else { return }
+
+		isInstallingPendingDocument = true
+		self.pendingDocument = nil
+		document = pendingDocument
+		isInstallingPendingDocument = false
+	}
+
+	private func alignPendingDocumentToTopIfNeeded() {
+		guard alignsPendingDocumentToTop,
+			pendingDocument == nil,
+			let page = document?.page(at: 0),
+			bounds.width > 0, bounds.height > 0
+		else { return }
+
+		let pageBounds = page.bounds(for: displayBox)
+		go(to: PDFDestination(
+			page: page,
+			at: CGPoint(x: pageBounds.minX, y: pageBounds.maxY)
+		))
+		alignsPendingDocumentToTop = false
+	}
+}
+
+private extension PDFView {
+	@MainActor
+	func sbjSetDocumentWhenLaidOut(_ document: PDFDocument) {
+		if let view = self as? FitClampedPDFView {
+			view.setDocumentWhenLaidOut(document)
+		} else {
+			self.document = document
+		}
 	}
 }
 
