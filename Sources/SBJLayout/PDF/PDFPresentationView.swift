@@ -3,52 +3,30 @@ import PDFKit
 import SwiftUI
 import SBJFoundation
 
-/// Generic SBJLayout PDF presentation styles. Applications choose the style from their
-/// own idiom/size policy; SBJLayout owns the reusable viewer mechanics.
-public enum PDFPresentationStyle: Equatable, Sendable {
-	case continuous
-	case paged(pagesPerView: Int)
-}
-
-/// Renders the document, transition, navigation host, and transient pagination highlight
-/// owned by a ``PDFPresentationController``.
+/// Renders one persistent, adaptively laid-out PDF view and its transient
+/// pagination highlight. Page arrangement is selected by StablePDFView from
+/// the actual viewport and PDF page geometry.
 @MainActor
-public struct PDFPresentationView<Input: Identifiable, PositionID: Hashable>: View {
-	private let presentation: PDFPresentationController<Input, PositionID>
-	private let style: PDFPresentationStyle
+public struct PDFPresentationView<PositionID: Hashable>: View {
+	private let presentation: PDFPresentationController<PositionID>
 
-	public init(
-		presentation: PDFPresentationController<Input, PositionID>,
-		style: PDFPresentationStyle
-	) {
+	public init(presentation: PDFPresentationController<PositionID>) {
 		self.presentation = presentation
-		self.style = style
 	}
 
 	public var body: some View {
-		switch style {
-		case .continuous:
-			continuousContent
-		case .paged(let pagesPerView):
-			pagedContent(pagesPerView: max(1, pagesPerView))
-		}
-	}
-
-	private var continuousContent: some View {
 		ZStack(alignment: .topLeading) {
-			if let outgoingDocument = presentation.outgoingDocument {
-				StablePDFView(document: outgoingDocument)
-					.opacity(presentation.outgoingOpacity)
-					.allowsHitTesting(false)
-			}
 			if let displayedDocument = presentation.displayedDocument {
 				StablePDFView(
 					document: displayedDocument,
 					controller: presentation.continuousController,
+					layout: .adaptive(),
+					logicalPageIndex: presentation.logicalPageIndex,
+					onLogicalPageChange: { presentation.logicalPageIndex = $0 },
 					onReady: { presentation.pdfViewReady() }
 				)
-				.opacity(presentation.displayedOpacity)
 			}
+
 			if let rect = presentation.highlightRect {
 				Color.clear
 					.frame(width: rect.width, height: rect.height)
@@ -71,18 +49,6 @@ public struct PDFPresentationView<Input: Identifiable, PositionID: Hashable>: Vi
 						presentation.viewportDidChange(to: size)
 					}
 			}
-		}
-	}
-
-	@ViewBuilder
-	private func pagedContent(pagesPerView: Int) -> some View {
-		if let displayedDocument = presentation.displayedDocument {
-			PDFPagedView(
-				document: displayedDocument,
-				controller: presentation.pagedController,
-				pagesPerView: pagesPerView
-			)
-			.opacity(presentation.displayedOpacity)
 		}
 	}
 }

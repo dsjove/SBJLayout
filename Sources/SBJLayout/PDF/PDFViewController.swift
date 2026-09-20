@@ -10,33 +10,23 @@ import PDFKit
 @Observable
 @MainActor
 public final class PDFViewController: PDFPageNavigating {
-	public private(set) var currentPageNumber = 0
-	public private(set) var pageCount = 0
-
+	private var displayCount: Int = 1
+	private var currentPageNumber = 0
+	private var pageCount = 0
 	private weak var pdfView: PDFView?
 	private var pageChangeTask: Task<Void, Never>?
 
 	public init() {}
 
-	public var pageLabel: String {
-		guard pageCount > 0, currentPageNumber > 0 else { return "" }
-		return "\(currentPageNumber)/\(pageCount)"
+	func setDisplayCount(_ count: Int) {
+		displayCount = max(count, 1)
 	}
 
-	public var pageAccessibilityLabel: String {
-		guard pageCount > 0, currentPageNumber > 0 else { return "No pages" }
-		return "Page \(currentPageNumber) of \(pageCount)"
-	}
-
-	public var canGoBackward: Bool { canGoToPreviousPage }
-	public var canGoForward: Bool { canGoToNextPage }
-
-	public var canGoToPreviousPage: Bool {
-		pdfView != nil && currentPageNumber > 1
-	}
-
-	public var canGoToNextPage: Bool {
-		pdfView != nil && currentPageNumber > 0 && currentPageNumber < pageCount
+	public var currentPage: PDFCurrentPage {
+		.init(
+			pageNumber: currentPageNumber,
+			displayCount: displayCount,
+			pageCount: pageCount)
 	}
 
 	public func goToFirstPage() {
@@ -59,13 +49,19 @@ public final class PDFViewController: PDFPageNavigating {
 		refreshPageState()
 	}
 
-	/// Navigates to pagination geometry and returns that geometry in the hosted
-	/// PDF view's coordinate space after PDFKit navigation has visually settled.
-	///
-	/// PDFKit does not expose a destination-navigation completion callback, so the
-	/// bridge samples the converted rectangle until it is stable for a few frames.
-	public func go(to position: PaginationPosition) async -> CGRect? {
+	/// Reveals pagination geometry if needed and returns the visible highlight rectangle
+	/// in the hosted PDF view's coordinate space. If the section is already comfortably
+	/// visible, no navigation occurs.
+	public func reveal(_ position: PaginationPosition) async -> CGRect? {
 		guard let pdfView else { return nil }
+		pdfView.layoutIfNeeded()
+
+		if let rect = convertedViewRect(for: position, in: pdfView),
+			isSufficientlyVisible(rect, in: pdfView)
+		{
+			return visibleViewRect(for: position, in: pdfView)
+		}
+
 		pdfView.go(to: position)
 		await waitForNavigationToSettle(to: position, in: pdfView)
 		guard !Task.isCancelled, self.pdfView === pdfView else { return nil }
@@ -132,6 +128,28 @@ public final class PDFViewController: PDFPageNavigating {
 
 		let index = document.index(for: currentPage)
 		currentPageNumber = index == NSNotFound ? 1 : index + 1
+	}
+
+	private func isSufficientlyVisible(_ rect: CGRect, in pdfView: PDFView) -> Bool {
+		let comfort = pdfView.bounds.insetBy(dx: 16, dy: 24)
+		guard !comfort.isEmpty else { return false }
+
+		let horizontal: Bool
+		if rect.width <= comfort.width {
+			horizontal = rect.minX >= comfort.minX && rect.maxX <= comfort.maxX
+		} else {
+			horizontal = comfort.contains(CGPoint(x: rect.midX, y: comfort.midY))
+		}
+
+		let vertical: Bool
+		if rect.height <= comfort.height {
+			vertical = rect.minY >= comfort.minY && rect.maxY <= comfort.maxY
+		} else {
+			// An oversized section can never fit completely; seeing its beginning is enough.
+			vertical = rect.minY >= comfort.minY && rect.minY <= comfort.maxY
+		}
+
+		return horizontal && vertical
 	}
 
 	private func waitForNavigationToSettle(

@@ -12,35 +12,36 @@ public struct PageManagementView<Controller: PDFPageNavigating>: View {
 	}
 
 	public var body: some View {
+		let pageRange = controller.currentPage
 		HStack(spacing: 8) {
 			Button(action: controller.goToFirstPage) {
 				Image(.system("backward.end"))
 			}
 			.accessibilityLabel("First Page")
-			.disabled(!controller.canGoBackward)
+			.disabled(!pageRange.canGoBackward)
 
 			Button(action: controller.goToPreviousPage) {
 				Image(.system("chevron.left"))
 			}
 			.accessibilityLabel("Previous Page")
-			.disabled(!controller.canGoBackward)
+			.disabled(!pageRange.canGoBackward)
 
-			Text(controller.pageLabel)
+			Text(pageRange.description)
 				.monospacedDigit()
 				.fixedSize()
-				.accessibilityLabel(controller.pageAccessibilityLabel)
+				.accessibilityLabel(pageRange.pageAccessibilityLabel)
 
 			Button(action: controller.goToNextPage) {
 				Image(.system("chevron.right"))
 			}
 			.accessibilityLabel("Next Page")
-			.disabled(!controller.canGoForward)
+			.disabled(!pageRange.canGoForward)
 
 			Button(action: controller.goToLastPage) {
 				Image(.system("forward.end"))
 			}
 			.accessibilityLabel("Last Page")
-			.disabled(!controller.canGoForward)
+			.disabled(!pageRange.canGoForward)
 		}
 	}
 }

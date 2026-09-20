@@ -5,163 +5,98 @@ import SwiftUI
 
 /// Reusable SwiftUI-facing presentation state for generated PDFs.
 ///
-/// The controller owns document replacement/cross-fade state, navigation to generated
-/// pagination geometry, transient highlight state, and both continuous and paged navigation
-/// controllers. Applications decide *which* presentation mode to use; SBJLayout owns how
-/// that mode is hosted.
+/// The controller owns document replacement, one-shot section reveal requests,
+/// transient highlight state, and navigation through one persistent PDF view.
 @Observable
 @MainActor
-public final class PDFPresentationController<Input: Identifiable, PositionID: Hashable> {
+public final class PDFPresentationController<PositionID: Hashable> {
 	public let continuousController = PDFViewController()
-	public let pagedController: PDFPagedViewController
 
 	public private(set) var displayedDocument: PDFDocument?
-	public private(set) var outgoingDocument: PDFDocument?
-	public private(set) var displayedOpacity = 1.0
-	public private(set) var outgoingOpacity = 0.0
 	public private(set) var positions: [PositionID: PaginationPosition] = [:]
+	public var logicalPageIndex = 0
 
 	public private(set) var highlightRect: CGRect?
 	public private(set) var highlightOpacity = 0.0
 	public private(set) var highlightScale = 1.0
 
-	private var displayedInputs: Input?
-	private var crossFadeGeneration = UUID()
 	private var navigationGeneration = UUID()
 	private var highlightTask: Task<Void, Never>?
 	private var pendingPositionID: PositionID?
-	private var lastNavigatedPositionID: PositionID?
 	private var viewportSize: CGSize = .zero
-	private var viewportNavigationTask: Task<Void, Never>?
-	private let crossFadeDuration: TimeInterval
 
-	public init(pagesPerView: Int = 1, crossFadeDuration: TimeInterval = 0.25) {
-		self.pagedController = PDFPagedViewController(pagesPerView: pagesPerView)
-		self.crossFadeDuration = crossFadeDuration
-	}
+	public init() {}
 
 	public func update(
 		to newDocument: PDFDocument?,
 		positions newPositions: [PositionID: PaginationPosition],
-		inputs: Input?
 	) {
-		pagedController.update(document: newDocument)
-
 		guard let newDocument else {
 			displayedDocument = nil
-			outgoingDocument = nil
 			positions = [:]
-			displayedInputs = nil
 			pendingPositionID = nil
-			lastNavigatedPositionID = nil
-			viewportNavigationTask?.cancel()
-			viewportNavigationTask = nil
 			cancelHighlight()
 			return
 		}
 
-		let shouldAnimate = displayedInputs != nil && displayedInputs?.id != inputs?.id
-		guard let currentDocument = displayedDocument else {
-			replaceWithoutAnimation(newDocument, positions: newPositions, inputs: inputs)
-			return
-		}
-		guard currentDocument !== newDocument else {
+		guard displayedDocument !== newDocument else {
 			positions = newPositions
-			return
-		}
-		guard shouldAnimate else {
-			replaceWithoutAnimation(newDocument, positions: newPositions, inputs: inputs)
+			performPendingRevealIfReady()
 			return
 		}
 
-		let generation = UUID()
-		crossFadeGeneration = generation
-		outgoingDocument = currentDocument
-		outgoingOpacity = 1
+		// StablePDFView owns visual document replacement. Keeping a single
+		// SwiftUI/PDFKit host lets it preserve zoom and viewport.
+		cancelHighlight()
 		displayedDocument = newDocument
 		positions = newPositions
-		displayedOpacity = 0
-		displayedInputs = inputs
-		cancelHighlight()
-
-		withAnimation(.easeInOut(duration: crossFadeDuration)) {
-			outgoingOpacity = 0
-			displayedOpacity = 1
-		}
-
-		Task { @MainActor [weak self] in
-			guard let self else { return }
-			try? await Task.sleep(for: .seconds(crossFadeDuration))
-			guard crossFadeGeneration == generation else { return }
-			outgoingDocument = nil
-			outgoingOpacity = 0
-		}
+		performPendingRevealIfReady()
 	}
 
-	public func go(to positionID: PositionID?) {
+	/// Requests a one-shot reveal/highlight of the identified pagination position.
+	/// Calling this again with the same position ID is a new request.
+	public func reveal(_ positionID: PositionID) {
 		pendingPositionID = positionID
-		lastNavigatedPositionID = positionID
-		if positionID == nil {
-			viewportNavigationTask?.cancel()
-			viewportNavigationTask = nil
-			cancelHighlight()
-		}
-		performPendingNavigationIfReady()
+		performPendingRevealIfReady()
 	}
 
+	/// Layout changes invalidate only the transient highlight rectangle. They do not
+	/// retain or replay a previously consumed section reveal.
 	public func viewportDidChange(to size: CGSize) {
 		guard size.width > 0, size.height > 0, size != viewportSize else { return }
 		viewportSize = size
-		guard let positionID = lastNavigatedPositionID else { return }
-
-		viewportNavigationTask?.cancel()
-		viewportNavigationTask = Task { @MainActor [weak self] in
-			try? await Task.sleep(for: .milliseconds(220))
-			guard !Task.isCancelled, let self else { return }
-			pendingPositionID = positionID
-			performPendingNavigationIfReady()
+		if highlightRect != nil {
+			cancelHighlight()
 		}
 	}
 
-	public func goAfterDocumentUpdate(to positionID: PositionID) {
-		pendingPositionID = positionID
-		lastNavigatedPositionID = positionID
-	}
-
 	public func pdfViewReady() {
-		performPendingNavigationIfReady()
+		performPendingRevealIfReady()
 	}
 
-	private func performPendingNavigationIfReady() {
+	private func performPendingRevealIfReady() {
 		guard let positionID = pendingPositionID,
 			displayedDocument != nil,
 			let position = positions[positionID]
 		else { return }
 
+		// Consume before performing. Reveal is an event, never persistent selection.
+		pendingPositionID = nil
 		cancelHighlight()
 		let generation = UUID()
 		navigationGeneration = generation
-		pendingPositionID = nil
 
 		highlightTask = Task { @MainActor [weak self] in
 			guard let self else { return }
-			let settlingDelays: [Duration] = [.zero, .milliseconds(80), .milliseconds(180)]
-			var finalRect: CGRect?
-
-			for delay in settlingDelays {
-				if delay != .zero { try? await Task.sleep(for: delay) }
+			guard let rect = await continuousController.reveal(position) else {
+				// Retain only a request that could not yet run because the PDF view
+				// itself is not ready.
 				guard !Task.isCancelled, navigationGeneration == generation else { return }
-				if let rect = await continuousController.go(to: position) {
-					finalRect = rect
-				}
-			}
-
-			guard !Task.isCancelled, navigationGeneration == generation else { return }
-			guard let finalRect else {
 				pendingPositionID = positionID
 				return
 			}
-			await animateHighlight(finalRect)
+			guard !Task.isCancelled, navigationGeneration == generation else { return }
+			await animateHighlight(rect)
 		}
 	}
 
@@ -194,24 +129,6 @@ public final class PDFPresentationController<Input: Identifiable, PositionID: Ha
 			highlightRect = nil
 			highlightOpacity = 0
 			highlightScale = 1
-		}
-	}
-
-	private func replaceWithoutAnimation(
-		_ document: PDFDocument,
-		positions newPositions: [PositionID: PaginationPosition],
-		inputs: Input?
-	) {
-		cancelHighlight()
-		var transaction = Transaction(animation: nil)
-		transaction.disablesAnimations = true
-		withTransaction(transaction) {
-			displayedDocument = document
-			positions = newPositions
-			displayedOpacity = 1
-			outgoingDocument = nil
-			outgoingOpacity = 0
-			displayedInputs = inputs
 		}
 	}
 }
