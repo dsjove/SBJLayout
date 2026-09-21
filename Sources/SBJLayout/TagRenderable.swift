@@ -2,6 +2,10 @@ import CoreGraphics
 import UIKit
 import SBJFoundation
 
+//TODO: use JSCRect and JCSText for impl
+//TODO: implement TagGroup using JCSGrid
+//TODO: extend TagUser for renderable
+
 /// Core Graphics representation of a semantic tag.
 ///
 /// Tag storage and SwiftUI controls live in SBJFoundation. Printable rendering

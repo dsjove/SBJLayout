@@ -7,7 +7,7 @@ The hosting boundary is:
 ```text
 application layout policy
         ↓
-PDFPresentationView / PDFPagedView / PageManagementView
+PDFPresentationView / PDFPagedView / PDFPageControlView
         ↓
 PDFPresentationController / PDFViewController / PDFPagedViewController
         ↓
@@ -53,7 +53,7 @@ Applications remain responsible for deciding which style to use based on idiom, 
 
 ## Shared page chrome
 
-Both `PDFViewController` and `PDFPagedViewController` conform to `PDFPageNavigating`. `PageManagementView` is generic over that protocol, so the same button builder/chrome is used for continuous, one-page, and multi-page presentations.
+Both `PDFViewController` and `PDFPagedViewController` conform to `PDFPageNavigating`. `PDFPageControlView` is generic over that protocol, so the same button builder/chrome is used for continuous, one-page, and multi-page presentations.
 
 ## Minimum zoom policy
 

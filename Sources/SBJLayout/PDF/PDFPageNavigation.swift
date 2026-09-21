@@ -13,7 +13,7 @@ public struct PDFCurrentPage: Equatable, Sendable, CustomStringConvertible {
     }
 
     var canGoBackward: Bool {
-        pageCount > 0 && pageNumber > 1
+        displayCount > 0 && pageCount > 0 && pageNumber > 1
     }
 
     var canGoForward: Bool {

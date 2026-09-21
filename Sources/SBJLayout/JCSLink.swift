@@ -8,7 +8,7 @@ import UIKit
 ///
 /// This keeps hyperlink semantics in SBJLayout rather than forcing PDF clients
 /// to reach into the underlying Core Graphics PDF context themselves.
-public struct PDFLink<Content: Renderable>: Renderable {
+public struct JCSLink<Content: Renderable>: Renderable {
     public let url: URL
     public let content: Content
 

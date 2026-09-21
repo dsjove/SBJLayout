@@ -102,6 +102,7 @@ public final class StablePDFHostView: UIView {
 	private var onDisplayCountChange: @MainActor (Int) -> Void = { _ in }
 	private var reportedDisplayCount = 1
 	private weak var representedSourceDocument: PDFDocument?
+	private var replacementCover: UIView?
 
 	override public init(frame: CGRect) {
 		super.init(frame: frame)
@@ -223,6 +224,11 @@ public final class StablePDFHostView: UIView {
 			|| !oldPageSize.sbjApproximatelyEquals(newPageSize)
 		isPerformingDocumentTransaction = true
 
+		// Keep the last stable PDF pixels visible while PDFKit asynchronously rebuilds
+		// its internal page/tile hierarchy. Reusing the same cover across rapid edits
+		// avoids exposing an intermediate PDFKit frame between keystrokes.
+		beginReplacementCoverIfNeeded()
+
 		var pagesReplaced = false
 		CATransaction.begin()
 		CATransaction.setDisableActions(true)
@@ -234,6 +240,7 @@ public final class StablePDFHostView: UIView {
 		}
 		CATransaction.commit()
 		guard pagesReplaced else {
+			removeReplacementCover()
 			isPerformingDocumentTransaction = false
 			completion()
 			return
@@ -263,12 +270,76 @@ public final class StablePDFHostView: UIView {
 				self.restore(viewport, in: pdfView, zoomPolicy: geometryChanged ? .relativeToFit : .absolute)
 			}
 
-			guard self.replacementGeneration == generation, self.represents(document) else { return }
+			// A newer render supersedes this one. Leave the shared cover in place; the
+			// newest generation will dismiss it after its own PDFKit rebuild settles.
+			guard self.replacementGeneration == generation, self.represents(document) else {
+				return
+			}
+
+			// PDFKit can publish one stale page tile after its synchronous layout calls
+			// return. Holding the cover briefly prevents that transient frame from being
+			// visible without replacing the live PDFView (which would steal focus).
+			try? await Task.sleep(for: .milliseconds(200))
+
+			guard self.replacementGeneration == generation, self.represents(document) else {
+				return
+			}
+
+			await self.dismissReplacementCover()
+
 			self.isPerformingDocumentTransaction = false
 			self.lastViewportSize = self.bounds.size
 			completion()
 		}
 	}
+
+
+	private func beginReplacementCoverIfNeeded() {
+		if let replacementCover {
+			replacementCover.alpha = 1
+			bringSubviewToFront(replacementCover)
+			return
+		}
+
+		guard let cover = pdfView.snapshotView(afterScreenUpdates: false) else { return }
+		cover.frame = pdfView.frame
+		cover.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+		cover.isUserInteractionEnabled = false
+		replacementCover = cover
+		addSubview(cover)
+		bringSubviewToFront(cover)
+	}
+
+	private func removeReplacementCover() {
+		replacementCover?.layer.removeAllAnimations()
+		replacementCover?.removeFromSuperview()
+		replacementCover = nil
+	}
+
+	private func dismissReplacementCover() async {
+		guard let cover = replacementCover else { return }
+
+		await withCheckedContinuation { continuation in
+			UIView.animate(
+				withDuration: 0.08,
+				delay: 0,
+				options: [.beginFromCurrentState, .curveEaseOut]
+			) {
+				cover.alpha = 0
+			} completion: { [weak self, weak cover] _ in
+				guard let self else {
+					continuation.resume()
+					return
+				}
+				if self.replacementCover === cover {
+					cover?.removeFromSuperview()
+					self.replacementCover = nil
+				}
+				continuation.resume()
+			}
+		}
+	}
+
 
 	/// Updates the PDF already attached to `PDFView` without assigning a new
 	/// `PDFView.document`. Assigning a new document causes PDFKit's internal

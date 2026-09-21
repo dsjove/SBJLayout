@@ -4,7 +4,7 @@ import SBJFoundation
 
 /// Shared SwiftUI page-navigation chrome for any SBJLayout PDF navigation controller.
 /// The same builder is used for continuous documents and grouped page presentations.
-public struct PageManagementView<Controller: PDFPageNavigating>: View {
+public struct PDFPageControlView<Controller: PDFPageNavigating>: View {
 	@Bindable var controller: Controller
 
 	public init(controller: Controller) {

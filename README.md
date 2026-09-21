@@ -12,7 +12,7 @@ The core model is deliberately small:
 - `Insets`, `Alignment`, `Aspect`, and `AspectRatio` provide reusable geometry behavior.
 - `Pagination` and `PaginationGroup` split measured content into pages.
 - `PDFGenerator` renders a `Renderable` tree into PDF data.
-- `PDFLink` adds hyperlink annotations around renderables without leaking Core Graphics PDF context handling to clients.
+- `JCSLink` adds hyperlink annotations around renderables without leaking Core Graphics PDF context handling to clients.
 - `JCSText`, `JCSImage`, `JCSRect`, and `JCSLine` provide basic UIKit/Core Graphics content and drawing wrappers.
 - `Jargon` is an experimental/legacy document-wording prototype retained temporarily while the shared SBJFoundation localization/presentation-resource design is developed.
 
