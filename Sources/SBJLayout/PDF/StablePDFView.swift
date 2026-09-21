@@ -353,9 +353,8 @@ public final class StablePDFHostView: UIView {
 	}
 
 	private func restoreInitialPage(_ pageIndex: Int) {
-		if pageIndex == 0 {
-			pdfView.sbjClampMinimumScaleToFit()
-			alignToTopOfFirstPage()
+		if pageIndex == 0, pdfView.displayMode == .singlePageContinuous {
+			restoreTopAtFit(in: pdfView)
 		} else {
 			restoreLogicalPage(pageIndex, in: pdfView)
 		}
@@ -469,14 +468,6 @@ public final class StablePDFHostView: UIView {
 		return page.bounds(for: pdfView.displayBox).size
 	}
 
-	private func alignToTopOfFirstPage() {
-		guard let page = pdfView.document?.page(at: 0) else { return }
-		let pageBounds = page.bounds(for: pdfView.displayBox)
-		pdfView.go(to: PDFDestination(
-			page: page,
-			at: CGPoint(x: pageBounds.minX, y: pageBounds.maxY)
-		))
-	}
 
 	/// A single-page ↔ two-up transition changes the meaning of zoom and scroll
 	/// geometry. Preserve only the user's logical page, then fit the new layout.
