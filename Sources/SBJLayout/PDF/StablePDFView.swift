@@ -12,23 +12,17 @@ public struct StablePDFView: UIViewRepresentable {
 	let document: PDFDocument
 	let controller: PDFViewController?
 	let layout: PDFContinuousLayout
-	let logicalPageIndex: Int
-	let onLogicalPageChange: @MainActor (Int) -> Void
 	let onReady: @MainActor () -> Void
 
 	public init(
 		document: PDFDocument,
 		controller: PDFViewController? = nil,
 		layout: PDFContinuousLayout = .singlePage,
-		logicalPageIndex: Int = 0,
-		onLogicalPageChange: @escaping @MainActor (Int) -> Void = { _ in },
 		onReady: @escaping @MainActor () -> Void = {}
 	) {
 		self.document = document
 		self.controller = controller
 		self.layout = layout
-		self.logicalPageIndex = logicalPageIndex
-		self.onLogicalPageChange = onLogicalPageChange
 		self.onReady = onReady
 	}
 
@@ -38,20 +32,14 @@ public struct StablePDFView: UIViewRepresentable {
 
 	public func makeUIView(context: Context) -> StablePDFHostView {
 		let host = StablePDFHostView()
+		let initialPageIndex = max((controller?.currentPage.pageNumber ?? 1) - 1, 0)
 		host.setDisplayCountChangeHandler { count in
 			controller?.setDisplayCount(count)
 		}
-		host.setLogicalPageState(
-			logicalPageIndex,
-			onChange: onLogicalPageChange
-		)
 		host.setContinuousLayout(layout)
 		context.coordinator.host = host
-		host.setDisplayCountChangeHandler { count in
-			controller?.setDisplayCount(count)
-		}
 		controller?.attach(host.pdfView)
-		host.installInitial(document: document) {
+		host.installInitial(document: document, pageIndex: initialPageIndex) {
 			guard host.represents(document) else { return }
 			controller?.refreshPageState()
 			onReady()
@@ -69,7 +57,6 @@ public struct StablePDFView: UIViewRepresentable {
 			controller?.setDisplayCount(count)
 		}
 		controller?.attach(host.pdfView)
-		host.updateLogicalPageChangeHandler(onLogicalPageChange)
 		host.setContinuousLayout(layout)
 
 		guard !host.represents(document) else {
@@ -105,17 +92,15 @@ public final class StablePDFHostView: UIView {
 	let pdfView = FitClampedPDFView()
 
 	private var pendingInitialDocument: PDFDocument?
+	private var pendingInitialPageIndex = 0
 	private var initialCompletion: (() -> Void)?
 	private var replacementGeneration = UUID()
 	private var hasPresentedDocument = false
 	private var continuousLayout: PDFContinuousLayout = .singlePage
 	private var lastViewportSize: CGSize = .zero
 	private var isPerformingDocumentTransaction = false
-	private var logicalPageIndex = 0
-	private var onLogicalPageChange: @MainActor (Int) -> Void = { _ in }
 	private var onDisplayCountChange: @MainActor (Int) -> Void = { _ in }
 	private var reportedDisplayCount = 1
-	private var isRestoringLogicalPage = false
 	private weak var representedSourceDocument: PDFDocument?
 
 	override public init(frame: CGRect) {
@@ -145,20 +130,6 @@ public final class StablePDFHostView: UIView {
 			pdfView.bottomAnchor.constraint(equalTo: bottomAnchor),
 		])
 
-		NotificationCenter.default.addObserver(
-			self,
-			selector: #selector(pdfViewPageChanged(_:)),
-			name: .PDFViewPageChanged,
-			object: pdfView
-		)
-	}
-
-	deinit {
-		NotificationCenter.default.removeObserver(self)
-	}
-
-	@objc private func pdfViewPageChanged(_ notification: Notification) {
-		captureLogicalPage()
 	}
 
 	override public func layoutSubviews() {
@@ -172,9 +143,10 @@ public final class StablePDFHostView: UIView {
 
 		if let pendingInitialDocument {
 			self.pendingInitialDocument = nil
+			let pageIndex = pendingInitialPageIndex
 			let completion = initialCompletion
 			initialCompletion = nil
-			presentInitial(document: pendingInitialDocument, completion: completion)
+			presentInitial(document: pendingInitialDocument, pageIndex: pageIndex, completion: completion)
 			return
 		}
 
@@ -203,20 +175,6 @@ public final class StablePDFHostView: UIView {
 		)
 	}
 
-	func setLogicalPageState(
-		_ pageIndex: Int,
-		onChange: @escaping @MainActor (Int) -> Void
-	) {
-		logicalPageIndex = max(pageIndex, 0)
-		onLogicalPageChange = onChange
-	}
-
-	func updateLogicalPageChangeHandler(
-		_ onChange: @escaping @MainActor (Int) -> Void
-	) {
-		onLogicalPageChange = onChange
-	}
-
 	func setDisplayCountChangeHandler(
 		_ onChange: @escaping @MainActor (Int) -> Void
 	) {
@@ -228,13 +186,18 @@ public final class StablePDFHostView: UIView {
 		representedSourceDocument === document
 	}
 
-	func installInitial(document: PDFDocument, completion: @escaping () -> Void) {
+	func installInitial(
+		document: PDFDocument,
+		pageIndex: Int = 0,
+		completion: @escaping () -> Void
+	) {
 		guard pdfView.document == nil, !hasPresentedDocument else {
 			completion()
 			return
 		}
 		representedSourceDocument = document
 		pendingInitialDocument = document
+		pendingInitialPageIndex = max(pageIndex, 0)
 		initialCompletion = completion
 		setNeedsLayout()
 	}
@@ -344,7 +307,11 @@ public final class StablePDFHostView: UIView {
 	}
 
 
-	private func presentInitial(document: PDFDocument, completion: (() -> Void)?) {
+	private func presentInitial(
+		document: PDFDocument,
+		pageIndex: Int,
+		completion: (() -> Void)?
+	) {
 		let generation = UUID()
 		replacementGeneration = generation
 		isPerformingDocumentTransaction = true
@@ -364,19 +331,19 @@ public final class StablePDFHostView: UIView {
 		pdfView.layoutIfNeeded()
 		pdfView.layoutDocumentView()
 
-		restoreInitialLogicalPage()
+		restoreInitialPage(pageIndex)
 
 		Task { @MainActor [weak self, weak pdfView] in
 			guard let self, let pdfView else { return }
 			await Task.yield()
 			pdfView.layoutIfNeeded()
 			pdfView.layoutDocumentView()
-			self.restoreInitialLogicalPage()
+			self.restoreInitialPage(pageIndex)
 			await Task.yield()
 			guard self.replacementGeneration == generation, self.represents(document) else { return }
 			pdfView.layoutIfNeeded()
 			pdfView.layoutDocumentView()
-			self.restoreInitialLogicalPage()
+			self.restoreInitialPage(pageIndex)
 			self.hasPresentedDocument = true
 			self.isPerformingDocumentTransaction = false
 			self.lastViewportSize = self.bounds.size
@@ -385,12 +352,12 @@ public final class StablePDFHostView: UIView {
 		}
 	}
 
-	private func restoreInitialLogicalPage() {
-		if logicalPageIndex == 0 {
+	private func restoreInitialPage(_ pageIndex: Int) {
+		if pageIndex == 0 {
 			pdfView.sbjClampMinimumScaleToFit()
 			alignToTopOfFirstPage()
 		} else {
-			restoreLogicalPage(logicalPageIndex, in: pdfView)
+			restoreLogicalPage(pageIndex, in: pdfView)
 		}
 	}
 
@@ -408,10 +375,7 @@ public final class StablePDFHostView: UIView {
 		let previousMode = pdfView.displayMode
 		let desiredMode = resolvedDisplayMode(for: document)
 		let modeChanged = previousMode != desiredMode
-		let pageToPreserve = logicalPageIndex
-
-
-		if modeChanged { isRestoringLogicalPage = true }
+		let pageToPreserve = currentLogicalPageIndex()
 
 		UIView.performWithoutAnimation {
 			configureDisplayMode(desiredMode)
@@ -442,43 +406,13 @@ public final class StablePDFHostView: UIView {
 				pdfView.layoutIfNeeded()
 				pdfView.layoutDocumentView()
 				self.restoreLogicalPage(pageToPreserve, in: pdfView)
-				self.logicalPageIndex = pageToPreserve
-				self.isRestoringLogicalPage = false
 			}
 		}
 	}
 
 
-	private func captureLogicalPage() {
-		guard hasPresentedDocument,
-			!isPerformingDocumentTransaction,
-			!isRestoringLogicalPage,
-			let document = pdfView.document,
-			document.pageCount > 0
-		else { return }
-
-		if pdfView.isUsingPageViewController {
-			let visibleIndices = pdfView.visiblePages.compactMap { page -> Int? in
-				let index = document.index(for: page)
-				return index == NSNotFound ? nil : index
-			}
-			if let firstVisible = visibleIndices.min() {
-				setLogicalPageIndex(firstVisible)
-				return
-			}
-		}
-
-		if let currentPage = pdfView.currentPage {
-			let index = document.index(for: currentPage)
-			if index != NSNotFound { setLogicalPageIndex(index) }
-		}
-	}
-
-	private func setLogicalPageIndex(_ pageIndex: Int) {
-		let resolved = max(pageIndex, 0)
-		guard logicalPageIndex != resolved else { return }
-		logicalPageIndex = resolved
-		onLogicalPageChange(resolved)
+	private func currentLogicalPageIndex() -> Int {
+		pdfView.sbjLogicalPageIndex ?? 0
 	}
 
 	/// Configures the interaction model as well as the page arrangement.
@@ -666,6 +600,25 @@ final class FitClampedPDFView: PDFView {
 }
 
 extension PDFView {
+	/// The first logical page represented by the current viewport. Two-up mode uses
+	/// the first visible page so page state describes the displayed spread consistently.
+	@MainActor
+	var sbjLogicalPageIndex: Int? {
+		guard let document, document.pageCount > 0 else { return nil }
+
+		if isUsingPageViewController {
+			let visibleIndices = visiblePages.compactMap { page -> Int? in
+				let index = document.index(for: page)
+				return index == NSNotFound ? nil : index
+			}
+			if let firstVisible = visibleIndices.min() { return firstVisible }
+		}
+
+		guard let currentPage else { return nil }
+		let index = document.index(for: currentPage)
+		return index == NSNotFound ? nil : index
+	}
+
 	/// Navigates to pagination geometry recorded in the UIGraphics coordinate space
 	/// used to create the PDF, converting it to the PDFPage coordinate space here.
 	@MainActor

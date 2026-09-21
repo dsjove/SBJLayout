@@ -21,8 +21,6 @@ public struct PDFPresentationView<PositionID: Hashable>: View {
 					document: displayedDocument,
 					controller: presentation.continuousController,
 					layout: .adaptive(),
-					logicalPageIndex: presentation.logicalPageIndex,
-					onLogicalPageChange: { presentation.logicalPageIndex = $0 },
 					onReady: { presentation.pdfViewReady() }
 				)
 			}

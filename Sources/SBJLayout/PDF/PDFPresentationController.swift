@@ -14,7 +14,6 @@ public final class PDFPresentationController<PositionID: Hashable> {
 
 	public private(set) var displayedDocument: PDFDocument?
 	public private(set) var positions: [PositionID: PaginationPosition] = [:]
-	public var logicalPageIndex = 0
 
 	public private(set) var highlightRect: CGRect?
 	public private(set) var highlightOpacity = 0.0
@@ -35,6 +34,7 @@ public final class PDFPresentationController<PositionID: Hashable> {
 			displayedDocument = nil
 			positions = [:]
 			pendingPositionID = nil
+			continuousController.resetPageState()
 			cancelHighlight()
 			return
 		}

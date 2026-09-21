@@ -13,7 +13,6 @@ struct PDFViewportState {
 	}
 
 	let anchor: Anchor?
-	let logicalPageIndex: Int?
 	let scaleFactor: CGFloat
 	let fitScaleRatio: CGFloat?
 	let isAtTopAtFit: Bool
@@ -38,38 +37,14 @@ extension PDFViewportState {
 		}
 
 		let isAtTopAtFit = captureTopAtFit(from: pdfView, fitScale: fitScale)
-		let logicalPageIndex = captureLogicalPageIndex(from: pdfView, document: document, anchor: anchor)
-
 		return PDFViewportState(
 			anchor: anchor,
-			logicalPageIndex: logicalPageIndex,
 			scaleFactor: pdfView.scaleFactor,
 			fitScaleRatio: fitScaleRatio,
 			isAtTopAtFit: isAtTopAtFit
 		)
 	}
 
-
-	private static func captureLogicalPageIndex(
-		from pdfView: PDFView,
-		document: PDFDocument,
-		anchor: Anchor?
-	) -> Int? {
-		if pdfView.isUsingPageViewController {
-			let visibleIndices = pdfView.visiblePages.compactMap { page -> Int? in
-				let index = document.index(for: page)
-				return index == NSNotFound ? nil : index
-			}
-			if let firstVisible = visibleIndices.min() { return firstVisible }
-		}
-
-		if let anchor { return anchor.pageIndex }
-		if let currentPage = pdfView.currentPage {
-			let index = document.index(for: currentPage)
-			return index == NSNotFound ? nil : index
-		}
-		return nil
-	}
 
 	private static func captureTopAtFit(from pdfView: PDFView, fitScale: CGFloat) -> Bool {
 		guard fitScale.isFinite, fitScale > 0,

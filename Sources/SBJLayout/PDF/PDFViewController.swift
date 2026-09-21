@@ -10,23 +10,24 @@ import PDFKit
 @Observable
 @MainActor
 public final class PDFViewController: PDFPageNavigating {
-	private var displayCount: Int = 1
-	private var currentPageNumber = 0
-	private var pageCount = 0
+	public private(set) var currentPage = PDFCurrentPage.empty
 	private weak var pdfView: PDFView?
 	private var pageChangeTask: Task<Void, Never>?
 
 	public init() {}
 
 	func setDisplayCount(_ count: Int) {
-		displayCount = max(count, 1)
+		let displayCount = max(count, 1)
+		guard currentPage.displayCount != displayCount else { return }
+		currentPage = PDFCurrentPage(
+			pageNumber: currentPage.pageNumber,
+			displayCount: displayCount,
+			pageCount: currentPage.pageCount
+		)
 	}
 
-	public var currentPage: PDFCurrentPage {
-		.init(
-			pageNumber: currentPageNumber,
-			displayCount: displayCount,
-			pageCount: pageCount)
+	func resetPageState() {
+		currentPage = .empty
 	}
 
 	public func goToFirstPage() {
@@ -104,30 +105,36 @@ public final class PDFViewController: PDFPageNavigating {
 		pageChangeTask?.cancel()
 		pageChangeTask = nil
 		pdfView = nil
-		currentPageNumber = 0
-		pageCount = 0
 	}
 
 	func refreshPageState() {
+		let displayCount = max(currentPage.displayCount, 1)
 		guard let pdfView, let document = pdfView.document else {
-			currentPageNumber = 0
-			pageCount = 0
+			currentPage = PDFCurrentPage(
+				pageNumber: 0,
+				displayCount: displayCount,
+				pageCount: 0
+			)
 			return
 		}
 
-		pageCount = document.pageCount
+		let pageCount = document.pageCount
 		guard pageCount > 0 else {
-			currentPageNumber = 0
+			currentPage = PDFCurrentPage(
+				pageNumber: 0,
+				displayCount: displayCount,
+				pageCount: 0
+			)
 			return
 		}
 
-		guard let currentPage = pdfView.currentPage else {
-			currentPageNumber = 1
-			return
-		}
+		let pageNumber = (pdfView.sbjLogicalPageIndex ?? 0) + 1
 
-		let index = document.index(for: currentPage)
-		currentPageNumber = index == NSNotFound ? 1 : index + 1
+		currentPage = PDFCurrentPage(
+			pageNumber: pageNumber,
+			displayCount: displayCount,
+			pageCount: pageCount
+		)
 	}
 
 	private func isSufficientlyVisible(_ rect: CGRect, in pdfView: PDFView) -> Bool {
