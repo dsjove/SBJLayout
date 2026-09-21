@@ -7,6 +7,7 @@ public struct JCSText: Renderable {
 	public let font: UIFont
 	public let align: Alignment?
 	public let lines: ClosedRange<Int>?
+	public let lineBreakMode: NSLineBreakMode
 	private let content: NSAttributedString?
 	private let charMeasure: NSAttributedString?
 // Immutable attributed content preserves JCSText value semantics; render works on a private mutable copy.
@@ -25,9 +26,10 @@ public struct JCSText: Renderable {
 		color: UIColor?,
 		align: Alignment? = nil,
 		minChars: Int? = nil,
-		lines: ClosedRange<Int>? = nil
+		lines: ClosedRange<Int>? = nil,
+		lineBreakMode: NSLineBreakMode = .byWordWrapping
 	) {
-		self.init(verbatim: text?.description, font: font, color: color, align: align, minChars: minChars, lines: lines)
+		self.init(verbatim: text?.description, font: font, color: color, align: align, minChars: minChars, lines: lines, lineBreakMode: lineBreakMode)
 	}
 
 	public init(
@@ -36,7 +38,8 @@ public struct JCSText: Renderable {
 		color: UIColor? = nil,
 		align: Alignment? = nil,
 		minChars: Int? = nil,
-		lines: ClosedRange<Int>? = nil
+		lines: ClosedRange<Int>? = nil,
+		lineBreakMode: NSLineBreakMode = .byWordWrapping
 	) {
 		self.init(
 			verbatim: Self.jargon.text(jargon),
@@ -44,7 +47,8 @@ public struct JCSText: Renderable {
 			color: color,
 			align: align,
 			minChars: minChars,
-			lines: lines
+			lines: lines,
+			lineBreakMode: lineBreakMode
 		)
 	}
 
@@ -55,7 +59,8 @@ public struct JCSText: Renderable {
 		color: UIColor? = nil,
 		align: Alignment? = nil,
 		minChars: Int? = nil,
-		lines: ClosedRange<Int>? = nil
+		lines: ClosedRange<Int>? = nil,
+		lineBreakMode: NSLineBreakMode = .byWordWrapping
 	) {
 		let text = jargon.map { key in
 			Self.jargon.format(key, value: value) ?? String(describing: value)
@@ -66,7 +71,8 @@ public struct JCSText: Renderable {
 			color: color,
 			align: align,
 			minChars: minChars,
-			lines: lines
+			lines: lines,
+			lineBreakMode: lineBreakMode
 		)
 	}
 
@@ -76,7 +82,8 @@ public struct JCSText: Renderable {
 		color: UIColor? = nil,
 		align: Alignment? = nil,
 		minChars: Int? = nil,
-		lines: ClosedRange<Int>? = nil
+		lines: ClosedRange<Int>? = nil,
+		lineBreakMode: NSLineBreakMode = .byWordWrapping
 	) {
 		let font = font ?? UIFont.systemFont(ofSize: 9.0)
 		let color = color ?? UIColor.black
@@ -84,6 +91,7 @@ public struct JCSText: Renderable {
 		self.font = font
 		self.align = align
 		self.lines = lines
+		self.lineBreakMode = lineBreakMode
 		let text = text?.limitingExplicitLines(to: lines?.upperBound)
 
 		if let text, !text.isEmpty {
@@ -159,7 +167,7 @@ public struct JCSText: Renderable {
 			value: {
 				let paragraphStyle = NSMutableParagraphStyle()
 				paragraphStyle.alignment = align.textAlignment
-				paragraphStyle.lineBreakMode = .byWordWrapping
+				paragraphStyle.lineBreakMode = lineBreakMode
 				return paragraphStyle
 			}(),
 			range: NSRange(
