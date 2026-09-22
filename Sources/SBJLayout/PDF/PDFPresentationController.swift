@@ -12,6 +12,10 @@ import SwiftUI
 public final class PDFPresentationController<PositionID: Hashable> {
 	public let continuousController = PDFViewController()
 
+	/// Device-neutral PDF viewing behavior. Applications may change this as their
+	/// surrounding layout changes without replacing the presentation controller.
+	public var layout: PDFPresentationLayout
+
 	public private(set) var displayedDocument: PDFDocument?
 	public private(set) var positions: [PositionID: PaginationPosition] = [:]
 
@@ -24,7 +28,9 @@ public final class PDFPresentationController<PositionID: Hashable> {
 	private var pendingPositionID: PositionID?
 	private var viewportSize: CGSize = .zero
 
-	public init() {}
+	public init(layout: PDFPresentationLayout = .adaptive()) {
+		self.layout = layout
+	}
 
 	public func update(
 		to newDocument: PDFDocument?,

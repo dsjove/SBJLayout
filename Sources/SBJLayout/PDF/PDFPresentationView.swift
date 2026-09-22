@@ -20,7 +20,7 @@ public struct PDFPresentationView<PositionID: Hashable>: View {
 				StablePDFView(
 					document: displayedDocument,
 					controller: presentation.continuousController,
-					layout: .adaptive(),
+					layout: presentation.layout,
 					onReady: { presentation.pdfViewReady() }
 				)
 			}

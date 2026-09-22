@@ -11,13 +11,13 @@ import QuartzCore
 public struct StablePDFView: UIViewRepresentable {
 	let document: PDFDocument
 	let controller: PDFViewController?
-	let layout: PDFContinuousLayout
+	let layout: PDFPresentationLayout
 	let onReady: @MainActor () -> Void
 
 	public init(
 		document: PDFDocument,
 		controller: PDFViewController? = nil,
-		layout: PDFContinuousLayout = .singlePage,
+		layout: PDFPresentationLayout = .verticalSinglePage,
 		onReady: @escaping @MainActor () -> Void = {}
 	) {
 		self.document = document
@@ -25,6 +25,7 @@ public struct StablePDFView: UIViewRepresentable {
 		self.layout = layout
 		self.onReady = onReady
 	}
+
 
 	public func makeCoordinator() -> Coordinator {
 		Coordinator(controller: controller)
@@ -36,7 +37,7 @@ public struct StablePDFView: UIViewRepresentable {
 		host.setDisplayCountChangeHandler { count in
 			controller?.setDisplayCount(count)
 		}
-		host.setContinuousLayout(layout)
+		host.setPresentationLayout(layout)
 		context.coordinator.host = host
 		controller?.attach(host.pdfView)
 		host.installInitial(document: document, pageIndex: initialPageIndex) {
@@ -57,7 +58,7 @@ public struct StablePDFView: UIViewRepresentable {
 			controller?.setDisplayCount(count)
 		}
 		controller?.attach(host.pdfView)
-		host.setContinuousLayout(layout)
+		host.setPresentationLayout(layout)
 
 		guard !host.represents(document) else {
 			host.pdfView.sbjClampMinimumScaleToFit()
@@ -96,7 +97,7 @@ public final class StablePDFHostView: UIView {
 	private var initialCompletion: (() -> Void)?
 	private var replacementGeneration = UUID()
 	private var hasPresentedDocument = false
-	private var continuousLayout: PDFContinuousLayout = .singlePage
+	private var presentationLayout: PDFPresentationLayout = .verticalSinglePage
 	private var lastViewportSize: CGSize = .zero
 	private var isPerformingDocumentTransaction = false
 	private var onDisplayCountChange: @MainActor (Int) -> Void = { _ in }
@@ -164,10 +165,10 @@ public final class StablePDFHostView: UIView {
 		lastViewportSize = bounds.size
 	}
 
-	func setContinuousLayout(_ layout: PDFContinuousLayout) {
-		guard continuousLayout != layout else { return }
+	func setPresentationLayout(_ layout: PDFPresentationLayout) {
+		guard presentationLayout != layout else { return }
 		let viewport = hasPresentedDocument ? PDFViewportState.capture(from: pdfView) : nil
-		continuousLayout = layout
+		presentationLayout = layout
 		guard let document = pdfView.document, hasPresentedDocument else { return }
 		applyLayout(
 			for: document,
@@ -219,8 +220,10 @@ public final class StablePDFHostView: UIView {
 		let viewport = PDFViewportState.capture(from: pdfView)
 		let oldPageSize = pageSize(of: displayedDocument)
 		let newPageSize = pageSize(of: document)
-		let desiredMode = resolvedDisplayMode(for: document)
+		let desiredLayout = resolvedPresentationLayout(for: document)
+		let desiredMode = displayMode(for: desiredLayout)
 		let geometryChanged = desiredMode != pdfView.displayMode
+			|| flowChanged(for: desiredLayout)
 			|| !oldPageSize.sbjApproximatelyEquals(newPageSize)
 		isPerformingDocumentTransaction = true
 
@@ -233,7 +236,7 @@ public final class StablePDFHostView: UIView {
 		CATransaction.begin()
 		CATransaction.setDisableActions(true)
 		UIView.performWithoutAnimation {
-			configureDisplayMode(desiredMode)
+			configurePresentation(desiredLayout)
 			pagesReplaced = replacePages(in: displayedDocument, from: document)
 			pdfView.layoutIfNeeded()
 			pdfView.layoutDocumentView()
@@ -387,7 +390,7 @@ public final class StablePDFHostView: UIView {
 		replacementGeneration = generation
 		isPerformingDocumentTransaction = true
 		pdfView.alpha = 0
-		configureDisplayMode(resolvedDisplayMode(for: document))
+		configurePresentation(resolvedPresentationLayout(for: document))
 
 		// The interactive PDFView owns a private display document from the beginning.
 		// Generated source documents remain immutable presentation payloads. Keeping the
@@ -443,12 +446,13 @@ public final class StablePDFHostView: UIView {
 	) {
 		guard !isPerformingDocumentTransaction else { return }
 		let previousMode = pdfView.displayMode
-		let desiredMode = resolvedDisplayMode(for: document)
-		let modeChanged = previousMode != desiredMode
+		let desiredLayout = resolvedPresentationLayout(for: document)
+		let desiredMode = displayMode(for: desiredLayout)
+		let modeChanged = previousMode != desiredMode || flowChanged(for: desiredLayout)
 		let pageToPreserve = currentLogicalPageIndex()
 
 		UIView.performWithoutAnimation {
-			configureDisplayMode(desiredMode)
+			configurePresentation(desiredLayout)
 			pdfView.layoutIfNeeded()
 			pdfView.layoutDocumentView()
 			if modeChanged {
@@ -485,13 +489,12 @@ public final class StablePDFHostView: UIView {
 		pdfView.sbjLogicalPageIndex ?? 0
 	}
 
-	/// Configures the interaction model as well as the page arrangement.
-	/// Single-page documents use a vertically continuous scroll view. Two-page
-	/// spreads use PDFKit's UIPageViewController-backed navigation so moving
-	/// through the document is horizontal spread-by-spread rather than a grid.
-	private func configureDisplayMode(_ mode: PDFDisplayMode) {
-		switch mode {
-		case .twoUp:
+	/// Configures both page count and navigation direction. Horizontal presentations
+	/// use PDFKit's page-view-controller interaction; vertical presentation uses one
+	/// continuous scroll view.
+	private func configurePresentation(_ layout: PDFPresentationLayout) {
+		switch layout {
+		case .horizontalTwoPage:
 			reportDisplayCount(2)
 			pdfView.displayMode = .twoUp
 			pdfView.displayDirection = .horizontal
@@ -503,7 +506,19 @@ public final class StablePDFHostView: UIView {
 				)
 			}
 
-		default:
+		case .horizontalSinglePage:
+			reportDisplayCount(1)
+			pdfView.displayMode = .singlePage
+			pdfView.displayDirection = .horizontal
+			pdfView.displaysAsBook = false
+			if !pdfView.isUsingPageViewController {
+				pdfView.usePageViewController(
+					true,
+					withViewOptions: [UIPageViewController.OptionsKey.interPageSpacing: 12]
+				)
+			}
+
+		case .verticalSinglePage:
 			reportDisplayCount(1)
 			if pdfView.isUsingPageViewController {
 				pdfView.usePageViewController(false, withViewOptions: nil)
@@ -511,6 +526,9 @@ public final class StablePDFHostView: UIView {
 			pdfView.displayMode = .singlePageContinuous
 			pdfView.displayDirection = .vertical
 			pdfView.displaysAsBook = false
+
+		case .adaptive:
+			assertionFailure("Adaptive PDF presentation must be resolved before configuration")
 		}
 	}
 
@@ -520,17 +538,46 @@ public final class StablePDFHostView: UIView {
 		onDisplayCountChange(count)
 	}
 
-	private func resolvedDisplayMode(for document: PDFDocument) -> PDFDisplayMode {
-		switch continuousLayout {
-		case .singlePage:
-			return .singlePageContinuous
+	private func resolvedPresentationLayout(for document: PDFDocument) -> PDFPresentationLayout {
+		switch presentationLayout {
+		case .verticalSinglePage:
+			return .verticalSinglePage
+		case .horizontalSinglePage:
+			return .horizontalSinglePage
+		case .horizontalTwoPage:
+			return .horizontalTwoPage
 		case .adaptive(let policy):
-			guard let pageSize = pageSize(of: document) else { return .singlePageContinuous }
-			return policy.displayMode(
+			guard let pageSize = pageSize(of: document) else { return .verticalSinglePage }
+			let mode = policy.displayMode(
 				viewport: bounds.size,
 				pageSize: pageSize,
 				current: pdfView.displayMode
 			)
+			return mode == .twoUp ? .horizontalTwoPage : .verticalSinglePage
+		}
+	}
+
+	private func displayMode(for layout: PDFPresentationLayout) -> PDFDisplayMode {
+		switch layout {
+		case .verticalSinglePage:
+			return .singlePageContinuous
+		case .horizontalSinglePage:
+			return .singlePage
+		case .horizontalTwoPage:
+			return .twoUp
+		case .adaptive:
+			return .singlePageContinuous
+		}
+	}
+
+	private func flowChanged(for desiredLayout: PDFPresentationLayout) -> Bool {
+		switch desiredLayout {
+		case .verticalSinglePage:
+			return pdfView.isUsingPageViewController || pdfView.displayDirection != .vertical
+		case .horizontalSinglePage, .horizontalTwoPage:
+			return !pdfView.isUsingPageViewController || pdfView.displayDirection != .horizontal
+		case .adaptive:
+			return false
 		}
 	}
 
