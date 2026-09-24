@@ -175,7 +175,7 @@ public struct Grid: Renderable {
 		rows: Rows = .init(),
 		render: Render = .init(),
 		arrangement: TrackArrangement = .gaps,
-		wrapping: Axis? = nil,
+		wrapping: TrackAxis? = nil,
 		@RenderableBuilder cells: ()->Cells
 	) {
 		self.init(
@@ -192,7 +192,7 @@ public struct Grid: Renderable {
 		rows: Rows = .init(),
 		render: Render = .init(),
 		arrangement: TrackArrangement = .gaps,
-		wrapping: Axis? = nil,
+		wrapping: TrackAxis? = nil,
 		cells: Cells
 	) {
 		self.render = render

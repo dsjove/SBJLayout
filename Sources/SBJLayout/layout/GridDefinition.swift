@@ -26,7 +26,7 @@ public struct GridDefinition<Cell: TrackElement> {
 	public let rowFactory: TrackFactory
 	public let cells: [Cell]
 	public let arrangement: TrackArrangement
-	public let wrapping: Axis?
+	public let wrapping: TrackAxis?
 
 	// Resolved layout snapshot.
 	public let columns: TrackMetrics
@@ -43,7 +43,7 @@ public struct GridDefinition<Cell: TrackElement> {
 		rows: TrackFactory = .init(),
 		cells: [Cell],
 		arrangement: TrackArrangement = .gaps,
-		wrapping: Axis? = nil
+		wrapping: TrackAxis? = nil
 	) {
 		self.init(
 			columnFactory: columns,
@@ -67,7 +67,7 @@ public struct GridDefinition<Cell: TrackElement> {
 		rowFactory: TrackFactory,
 		cells: [Cell],
 		arrangement: TrackArrangement,
-		wrapping: Axis?,
+		wrapping: TrackAxis?,
 		columns: TrackMetrics,
 		rows: TrackMetrics,
 		measured: [CGSize],

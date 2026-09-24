@@ -24,7 +24,7 @@ public final class GridLayout<Element: TrackElement> {
 		rows: TrackFactory = .init(),
 		cells: [Element],
 		arrangement: TrackArrangement = .gaps,
-		wrapping: Axis? = nil
+		wrapping: TrackAxis? = nil
 	) {
 		let definition = Definition(
 			columns: columns,

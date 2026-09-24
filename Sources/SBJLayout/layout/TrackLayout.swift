@@ -19,7 +19,7 @@ public struct TrackMetrics {
 	}
 }
 
-public enum Axis {
+public enum TrackAxis {
 	case horizontal
 	case vertical
 }
