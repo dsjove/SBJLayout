@@ -24,6 +24,12 @@ public struct JCSImage: Renderable {
 		aspect.apply(size: image?.size ?? .zero, in: bounds)
 	}
 
+	public func minimumMeasure(bounds: CGSize) -> CGSize {
+		// Images currently have no separate semantic minimum. Preserve the existing
+		// aspect-sizing contract until image-specific minimum policy is required.
+		measure(bounds: bounds)
+	}
+
 	public func render(in allocated: CGRect, measured: CGSize, align: Alignment) {
 		if let image = image {
 			let sized = aspect.apply(size: image.size, in: allocated.size)

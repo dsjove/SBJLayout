@@ -1,11 +1,12 @@
 import CoreGraphics
 import SBJFoundation
 
-// TODO(Localization/Text fitting): measurement needs a presentation/size-class input
-// so a renderable can retry with alternate text candidates (full, compact,
-// abbreviated, multiline, etc.) without mutating the model or JCSText. The same
-// candidate-selection model should be shared with SBJFoundation/SwiftUI; Layout
-// remains responsible for Core Graphics measurement and retry decisions.
+// TODO(Localization/Text fitting): minimumMeasure now handles geometric
+// minimum-content sizing, but candidate fitting still needs a presentation/
+// size-class input so a renderable can retry alternate text candidates (full,
+// compact, abbreviated, multiline, etc.) without mutating the model or JCSText.
+// The same candidate-selection model should be shared with SBJFoundation/SwiftUI;
+// Layout remains responsible for Core Graphics measurement and retry decisions.
 public protocol Renderable: TrackElement, Chrome {
 	// init should do any data transformations
 
@@ -41,6 +42,10 @@ public struct EmptyRenderable: Renderable {
 		CGSize(
 			width: size.width.isUnbounded ? size.width : bounds.width,
 			height: size.height.isUnbounded ? size.height : bounds.height)
+	}
+
+	public func minimumMeasure(bounds: CGSize) -> CGSize {
+		measure(bounds: bounds)
 	}
 
 	public func render(in allocated: CGRect, measured: CGSize, align: Alignment) {}

@@ -20,14 +20,16 @@ SBJLayout currently targets **iOS 17+** and requires **Swift 6.4**.
 
 ## Layout model
 
-A `Renderable` participates in two phases:
+A `Renderable` participates in measure/render phases:
 
 ```swift
 let measured = content.measure(bounds: bounds)
 content.render(in: allocated, measured: measured, align: .leftTop)
 ```
 
-Measurement is superview-driven: parents supply bounds and children return their intrinsic result within those bounds. Rendering receives both the allocated rectangle and the previously measured content size.
+`TrackElement` also exposes `minimumMeasure(bounds:)`, a content-driven minimum-size probe used by layout when a flexible track must contribute meaningfully before a final bounded size exists. The default implementation delegates to ordinary `measure(bounds:)`; elements with a distinct minimum-content concept override it.
+
+Measurement is superview-driven: parents supply bounds and children return their preferred result within those bounds. Rendering receives both the allocated rectangle and the previously measured content size. Minimum measurement is a separate geometric question and does not replace ordinary measurement.
 
 `CGSize.unbounded` and `CGFloat.unbounded` are finite sentinels used where one or both dimensions are unconstrained. Code that participates in layout should preserve an unbounded dimension rather than performing normal finite-size arithmetic on it.
 
@@ -63,7 +65,7 @@ Grid can also wrap resolved tracks against a bounded primary axis with `wrapping
 - `.fixed(value)` — fixed length; negative values resolve to zero.
 - `.intrinsic(bound:min:)` — measure cell content with a suggested bound and optional minimum.
 - `.uniform(reduce:)` — measure uniform candidates and apply a reducer, `max` by default.
-- `.fill(fraction:min:max:ifContent:)` — consume remaining bounded space subject to fraction/min/max rules. With `ifContent: true`, the fill track collapses when its intrinsic aggregate on that axis is zero.
+- `.fill(fraction:min:max:ifContent:)` — consume remaining bounded space subject to fraction/min/max rules. With `ifContent: true`, the fill track collapses when its intrinsic aggregate on that axis is zero. During an unbounded Grid measurement, active fill tracks use their cells' minimum-content measurements and requested fractions to derive a minimum fill pool, then apply the same sequential Fill allocation rules. This gives fill descendants a nonzero intrinsic contribution when they are nested inside an intrinsic parent without changing normal bounded fill allocation.
 
 `TrackArrangement` controls how tracks combine:
 
@@ -95,7 +97,7 @@ Cells beyond a row factory's `maxCount` are intentionally excluded. Minimum row 
 
 ## Text and images
 
-`JCSText` currently supports verbatim text plus the experimental Jargon lookup/formatting path, minimum character width, line-height constraints, and horizontal/vertical alignment. The planned shared-resource/fitting API is described in `LOCALIZATION_DESIGN.md`.
+`JCSText` currently supports verbatim text plus the experimental Jargon lookup/formatting path, minimum character width, line-height constraints, and horizontal/vertical alignment. Its minimum-content measurement uses the widest Foundation word segment for word wrapping and the widest extended grapheme cluster for character wrapping; `minChars` remains an adaptive character-based reserve. Clipping/truncation currently retain ordinary measurement semantics. The planned shared-resource/candidate-fitting API is described in `LOCALIZATION_DESIGN.md`.
 
 `JCSImage` measures and renders a `UIImage` with `Aspect` behavior and optional rounded clipping. A nil image measures as zero for fit/fill layouts.
 
@@ -145,7 +147,7 @@ Current grid work is row-major and non-spanning. Track spans, wrapping, cross-gr
 
 ## Tests
 
-The test suite covers geometry helpers, alignment/aspect behavior, builders, track factories and allocation, grid definition/layout behavior, text measurement semantics, jargon, pagination, and unbounded sentinel handling.
+The test suite covers geometry helpers, alignment/aspect behavior, builders, track factories and allocation, minimum-content and nested fill behavior, grid definition/layout behavior, text measurement semantics, jargon, pagination, and unbounded sentinel handling.
 
 Run with a Swift 6.4 toolchain:
 

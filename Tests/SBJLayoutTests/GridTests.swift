@@ -309,3 +309,30 @@ extension GridRenderingTests {
 	}
 }
 
+
+extension GridRenderingTests {
+	@Test("Nested fill grid contributes minimum content to an intrinsic parent")
+	func nestedFillContributesToIntrinsicParent() {
+		let inner = Grid(
+			table: [
+				Track(.fill(0.20)),
+				Track(.fill(0.25)),
+				Track(.fill(0.55))
+			]
+		) {
+			JCSText(verbatim: "Damage")
+			JCSText(verbatim: "Range")
+			JCSText(verbatim: "Properties/Effects")
+		}
+		let outer = Grid(vertFlow: Track(.intrinsic())) {
+			inner
+		}
+
+		let measured = outer.measure(bounds: .unbounded)
+		let innerColumns = inner.layout.definition.columns.lengths
+
+		#expect(innerColumns.count == 3)
+		#expect(innerColumns.allSatisfy { $0 > 0 })
+		#expect(measured.width == inner.layout.definition.size.width)
+	}
+}

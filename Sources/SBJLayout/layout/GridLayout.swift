@@ -49,6 +49,7 @@ public final class GridLayout<Element: TrackElement> {
 		case .horizontal:
 			let wrapped = columns.applyWrapped(
 				available: bounds.width,
+				minimumIntrinsic: minimumColumnWidth,
 				intrinsic: intrinsicColumnWidth
 			)
 			wrappedBands = wrapped.bands
@@ -56,6 +57,7 @@ public final class GridLayout<Element: TrackElement> {
 		case .vertical, .none:
 			columns.apply(
 				available: bounds.width,
+				minimumIntrinsic: minimumColumnWidth,
 				intrinsic: intrinsicColumnWidth
 			)
 		}
@@ -70,6 +72,7 @@ public final class GridLayout<Element: TrackElement> {
 		case .vertical:
 			let wrapped = rows.applyWrapped(
 				available: bounds.height,
+				minimumIntrinsic: minimumRowHeight,
 				intrinsic: intrinsicRowHeight
 			)
 			wrappedBands = wrapped.bands
@@ -77,6 +80,7 @@ public final class GridLayout<Element: TrackElement> {
 		case .horizontal, .none:
 			rows.apply(
 				available: bounds.height,
+				minimumIntrinsic: minimumRowHeight,
 				intrinsic: intrinsicRowHeight
 			)
 		}
@@ -87,6 +91,9 @@ public final class GridLayout<Element: TrackElement> {
 				let bandRows = definition.rowLayout
 				bandRows.apply(
 					available: bounds.height,
+					minimumIntrinsic: { [self] row, track, bound in
+						minimumRowHeight(row, track: track, bound, horizontalBand: band, wrappedBands: wrappedBands)
+					},
 					intrinsic: { [self] row, track, bound in
 						intrinsicRowHeight(row, track: track, bound, horizontalBand: band, wrappedBands: wrappedBands)
 					}
@@ -124,6 +131,20 @@ public final class GridLayout<Element: TrackElement> {
 			candidates.append(
 				measureElement(
 					at: index,
+					bounds: CGSize(width: bound, height: .unbounded)
+				).width
+			)
+		}
+		return track.aggregate(candidates) ?? 0
+	}
+
+	private func minimumColumnWidth(_ column: Int, _ track: Track, _ bound: CGFloat) -> CGFloat {
+		var candidates: [CGFloat] = []
+		candidates.reserveCapacity(definition.rowCount)
+		definition.forEachCell(inColumn: column) { index in
+			guard definition.cells.indices.contains(index) else { return }
+			candidates.append(
+				definition.cells[index].minimumMeasure(
 					bounds: CGSize(width: bound, height: .unbounded)
 				).width
 			)
@@ -172,6 +193,34 @@ public final class GridLayout<Element: TrackElement> {
 			if let candidate = measurements[index]?.size.height {
 				candidates.append(candidate)
 			}
+		}
+		return track.aggregate(candidates) ?? 0
+	}
+
+	private func minimumRowHeight(_ row: Int, track: Track, _ bound: CGFloat) -> CGFloat {
+		minimumRowHeight(row, track: track, bound, horizontalBand: nil, wrappedBands: [])
+	}
+
+	private func minimumRowHeight(
+		_ row: Int,
+		track: Track,
+		_ bound: CGFloat,
+		horizontalBand: Int?,
+		wrappedBands: [Int]
+	) -> CGFloat {
+		var candidates: [CGFloat] = []
+		candidates.reserveCapacity(definition.columnCount)
+		for column in 0..<definition.columnCount {
+			if let horizontalBand {
+				guard wrappedBands.indices.contains(column), wrappedBands[column] == horizontalBand else { continue }
+			}
+			let index = definition.cellIdx(column, row)
+			guard index < definition.cellCount else { continue }
+			let width = columns.lengths.indices.contains(column) ? columns.lengths[column] : .unbounded
+			let size = definition.cells[index].minimumMeasure(
+				bounds: CGSize(width: width, height: bound)
+			)
+			candidates.append(size.height)
 		}
 		return track.aggregate(candidates) ?? 0
 	}

@@ -21,6 +21,10 @@ public struct JCSLink<Content: Renderable>: Renderable {
         content.measure(bounds: bounds)
     }
 
+    public func minimumMeasure(bounds: CGSize) -> CGSize {
+        content.minimumMeasure(bounds: bounds)
+    }
+
     public func render(in allocated: CGRect, measured: CGSize, align: Alignment) {
         let frame = align.apply(size: measured, in: allocated)
         content.render(in: allocated, measured: measured, align: align)

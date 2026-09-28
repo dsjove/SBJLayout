@@ -7,18 +7,28 @@ struct GridLayoutTests {
 	private final class MeasuringElement: TrackElement {
 		private(set) var measuredBounds: [CGSize] = []
 		let measureBlock: (CGSize) -> CGSize
+		let minimumMeasureBlock: ((CGSize) -> CGSize)?
 
-		init(size: CGSize) {
+		init(size: CGSize, minimumSize: CGSize? = nil) {
 			self.measureBlock = { _ in size }
+			self.minimumMeasureBlock = minimumSize.map { minimumSize in { _ in minimumSize } }
 		}
 
-		init(measure: @escaping (CGSize) -> CGSize) {
+		init(
+			measure: @escaping (CGSize) -> CGSize,
+			minimumMeasure: ((CGSize) -> CGSize)? = nil
+		) {
 			self.measureBlock = measure
+			self.minimumMeasureBlock = minimumMeasure
 		}
 
 		func measure(bounds: CGSize) -> CGSize {
 			measuredBounds.append(bounds)
 			return measureBlock(bounds)
+		}
+
+		func minimumMeasure(bounds: CGSize) -> CGSize {
+			minimumMeasureBlock?(bounds) ?? measureBlock(bounds)
 		}
 
 		var measureCount: Int {
@@ -116,6 +126,29 @@ struct GridLayoutTests {
 		#expect(definition.columns.lengths == [220, 80])
 		#expect(definition.columns.offsets == [0, 220])
 		#expect(definition.size.width == 300)
+	}
+
+	@Test("Unbounded fill columns use minimum-content widths and preserve fractions")
+	func unboundedFillUsesMinimumContentPool() {
+		let cells = [
+			MeasuringElement(size: CGSize(width: 400, height: 10), minimumSize: CGSize(width: 40, height: 10)),
+			MeasuringElement(size: CGSize(width: 400, height: 10), minimumSize: CGSize(width: 30, height: 10)),
+			MeasuringElement(size: CGSize(width: 400, height: 10), minimumSize: CGSize(width: 90, height: 10))
+		]
+		let layout = GridLayout(
+			columns: .init([
+				Track(.fill(0.20)),
+				Track(.fill(0.25)),
+				Track(.fill(0.55))
+			]),
+			cells: cells,
+			arrangement: .tight
+		)
+
+		let definition = layout.measure(bounds: .unbounded)
+
+		#expect(definition.columns.lengths == [40, 50, 110])
+		#expect(definition.size.width == 200)
 	}
 
 	@Test("A fill cell is remeasured only when its resolved width changes")

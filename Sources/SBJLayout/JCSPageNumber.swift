@@ -16,6 +16,11 @@ public struct JCSPageNumber: Renderable {
 			.measure(bounds: bounds)
 	}
 
+	public func minimumMeasure(bounds: CGSize) -> CGSize {
+		text(pageNumberText: String(repeating: "8", count: estimatedPageCountDigits))
+			.minimumMeasure(bounds: bounds)
+	}
+
 	public func render(in allocated: CGRect, measured: CGSize, align: SBJLayout.Alignment) {
 		text(pageNumberText: String(Self.page?.number ?? 1))
 			.render(in: allocated, measured: measured, align: align)

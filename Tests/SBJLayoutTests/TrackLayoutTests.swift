@@ -430,6 +430,44 @@ struct TrackLayoutTests {
         expectEqual(maximumWidths.offsets, [0])
     }
 
+    @Test
+    func testUnboundedFillUsesMinimumIntrinsicPoolWhenProvided() {
+        let widths = TrackLayout(
+            tracks: [
+                Track(.fill(0.20)),
+                Track(.fill(0.25)),
+                Track(.fill(0.55))
+            ],
+            layout: .tight
+        )
+        let minimums: [CGFloat] = [40, 30, 90]
+
+        widths.apply(
+            available: .unbounded,
+            minimumIntrinsic: { index, _, _ in minimums[index] },
+            intrinsic: { _, _, _ in 0 }
+        )
+
+        // 40 / 0.20 requires a 200-point fill pool. The other minimums
+        // fit inside their fractions of that same pool.
+        expectEqual(widths.lengths, [40, 50, 110])
+        expectEqual(widths.offsets, [0, 40, 90])
+        expectEqual(widths.size, 200)
+    }
+
+    @Test
+    func testUnboundedFillWithoutMinimumIntrinsicRemainsUnresolved() {
+        let widths = TrackLayout(
+            tracks: [Track(.fixed(100)), Track(.fill())],
+            layout: .tight
+        )
+
+        widths.apply(available: .unbounded) { _, _, _ in 80 }
+
+        expectEqual(widths.lengths, [100, 0])
+        expectEqual(widths.size, 100)
+    }
+
     // MARK: - Cache behavior
 
     @Test

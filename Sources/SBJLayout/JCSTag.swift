@@ -67,6 +67,11 @@ public struct JCSTag: Renderable {
 		return viewModel.measure(bounds: bounds)
 	}
 
+	public func minimumMeasure(bounds: CGSize) -> CGSize {
+		guard !isEmpty else { return .zero }
+		return viewModel.minimumMeasure(bounds: bounds)
+	}
+
 	public func render(in allocated: CGRect, measured: CGSize, align: Alignment) {
 		guard !isEmpty else { return }
 		let rect = align.apply(size: measured, in: allocated)
@@ -115,6 +120,11 @@ public struct JCSTagGroup: Renderable {
 	public func measure(bounds: CGSize) -> CGSize {
 		guard !tags.isEmpty else { return .zero }
 		return grid.measure(bounds: bounds)
+	}
+
+	public func minimumMeasure(bounds: CGSize) -> CGSize {
+		guard !tags.isEmpty else { return .zero }
+		return grid.minimumMeasure(bounds: bounds)
 	}
 
 	public func render(in allocated: CGRect, measured: CGSize, align: Alignment) {

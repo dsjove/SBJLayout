@@ -2,7 +2,9 @@
 
 ## Status
 
-This document describes SBJLayout's role in the shared localization/text-presentation design owned primarily by SBJFoundation. It is a design document, not a description of an implemented API.
+This document describes SBJLayout's role in the shared localization/text-presentation design owned primarily by SBJFoundation. The shared text-resource/candidate-selection API described here is not implemented yet.
+
+One supporting geometry primitive is now implemented: `TrackElement.minimumMeasure(bounds:)`. Grid/Fill use it to derive minimum-content contributions when a flexible track is measured without a final bounded width. That primitive is intentionally independent of localization lookup and candidate selection.
 
 `Jargon` remains in the package for now but is experimental/unused and should not constrain the final design.
 
@@ -82,9 +84,33 @@ The shared context value should carry locale and configured resolver/provider st
 
 Do not use `Locale.current` as the only source of locale during PDF generation. A document render/test may intentionally use a locale different from the device's current locale.
 
+
+## Minimum-content measurement (implemented)
+
+`TrackElement` now has two geometric measurement questions:
+
+- `measure(bounds:)` asks for the element's preferred/ordinary size under the supplied bounds;
+- `minimumMeasure(bounds:)` asks for the smallest content-driven size the element can validly occupy under those bounds.
+
+The default minimum implementation delegates to ordinary measurement. Wrappers such as `Panel`, `JCSLink`, page/title wrappers, and pagination groups preserve structural costs and delegate the minimum-content question to their children. `Grid` recursively performs an independent minimum-content probe so it does not contaminate the normal measurement cache or pagination state.
+
+`JCSText` currently defines minimum width by its legal wrapping unit:
+
+- word wrapping uses the widest Foundation word segment;
+- character wrapping uses the widest extended grapheme cluster;
+- punctuation/no-word text falls back to the widest grapheme;
+- `minChars` remains an adaptive character-based reserve;
+- clipping/truncation currently retain ordinary measurement semantics.
+
+A finite bound caps the reported text minimum. With an unbounded bound, an actually unbreakable token can still have a very large minimum; that is a real consequence of the current break policy, not a reason to substitute preferred width. Future fitting/localization work may add hyphenation, discretionary break, truncation-minimum, or explicit overflow policy.
+
+Fill uses these minima only when its normal bounded allocation cannot yet run. For an unbounded Grid measurement, active fill tracks derive a minimum fill pool from their content minima and fill fractions. This is what allows a nested fill table to contribute a meaningful intrinsic width inside an intrinsic parent while leaving normal finite fill allocation unchanged.
+
+This primitive is directly relevant to localization but does not localize anything. A translated candidate may have a different minimum width because its words, graphemes, font metrics, and break opportunities differ. Future candidate fitting should measure the selected candidate's preferred and minimum-content sizes rather than relying on hard-coded point minima.
+
 ## Measurement and retry problem
 
-The TODO around adding a size/presentation class to measure/draw is part of localization, not just geometry.
+The remaining TODO around adding a presentation/size-class input to measure/draw is part of localization, not just geometry. `minimumMeasure(bounds:)` solves the geometric minimum-content question only; it does not choose among alternate localized presentations.
 
 A label can have several valid localized presentations, for example:
 
@@ -147,9 +173,11 @@ SBJTextResource
 
 The exact protocol changes are intentionally deferred until the Structure resource type is proven.
 
-## Intrinsic sizing implications
+## Preferred/minimum sizing implications
 
-A candidate change affects both width and height. Therefore candidate selection participates in intrinsic size, grid track resolution, row height, wrapping, pagination, and page breaks.
+A candidate change affects both preferred and minimum-content width/height. Therefore candidate selection participates in intrinsic size, fill minimum-content resolution, grid track resolution, row height, wrapping, pagination, and page breaks.
+
+For a single resolved candidate, `minimumMeasure` provides a useful geometric lower bound. Conceptually, a candidate whose minimum width already exceeds the available width cannot fit under the current break policy; a candidate whose preferred width exceeds the available width but whose minimum fits may still be viable through wrapping. Line limits, truncation policy, and future hyphenation/discretionary breaks remain part of that decision.
 
 This means fit selection cannot be a last-second draw-time fallback. It must occur during the same measurement pass that determines grid and pagination geometry.
 
@@ -194,6 +222,8 @@ Add tests that cover:
 - measurement/render selection consistency;
 - measurement cache invalidation when text context changes;
 - explicit line limits and localized line breaks;
+- minimum-content behavior for substantially longer translations;
+- word segmentation/break behavior for CJK and other languages whose legal line breaks are not equivalent to English whitespace;
 - right-to-left text measurement/rendering;
 - pagination behavior when a candidate changes height.
 

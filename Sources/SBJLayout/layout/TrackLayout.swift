@@ -19,6 +19,12 @@ public struct TrackMetrics {
 	}
 }
 
+public enum TrackArrangement {
+	case tight
+	case gaps
+	case stack
+}
+
 public enum TrackAxis {
 	case horizontal
 	case vertical
@@ -45,12 +51,14 @@ public class TrackLayout {
 	public var lengths: [CGFloat] { metrics.lengths }
 	public var offsets: [CGFloat] { metrics.offsets }
 	public var size: CGFloat { metrics.size }
-// Prepared (lengths and sizes do not include fills
+// Prepared baseline; lengths and size exclude fill allocation.
 	public private(set) var fillCount: Int
 	public var hasFill: Bool { fillCount > 0 }
 	private var preparedLengths: [CGFloat]
 	private var preparedSize: CGFloat
 	private var preparedFillActive: [Bool]
+	private var preparedFillMinimums: [CGFloat]
+	private var usesMinimumFillSizing: Bool
 // Can change with hasFill
 	private var lastBounds: CGFloat?
 
@@ -68,6 +76,8 @@ public class TrackLayout {
 		self.preparedLengths = []
 		self.preparedSize = 0
 		self.preparedFillActive = []
+		self.preparedFillMinimums = []
+		self.usesMinimumFillSizing = false
 	}
 
 	public func invalidate() {
@@ -75,6 +85,8 @@ public class TrackLayout {
 		preparedLengths = []
 		preparedSize = 0
 		preparedFillActive = []
+		preparedFillMinimums = []
+		usesMinimumFillSizing = false
 		lastBounds = nil
 		metrics.lengths = []
 		metrics.offsets = []
@@ -84,6 +96,11 @@ public class TrackLayout {
 
 	internal func applyWrapped(
 		available: CGFloat,
+		minimumIntrinsic: ((
+			_ index: Int,
+			_ element: Track,
+			_ bound: CGFloat
+		) -> CGFloat)? = nil,
 		intrinsic: (
 			_ index: Int,
 			_ element: Track,
@@ -96,7 +113,7 @@ public class TrackLayout {
 		guard !metrics.tracks.isEmpty else {
 			return .init(metrics: metrics, bands: [], bandSizes: [])
 		}
-		prepare(intrinsic)
+		prepare(minimumIntrinsic: minimumIntrinsic, intrinsic: intrinsic)
 
 		guard available != .unbounded, layout != .stack else {
 			calculateFills(available)
@@ -200,6 +217,11 @@ public class TrackLayout {
 
 	public func apply(
 		available: CGFloat = .unbounded,
+		minimumIntrinsic: ((
+			_ index: Int,
+			_ element: Track,
+			_ bound: CGFloat
+		) -> CGFloat)? = nil,
 		intrinsic: (
 			_ index: Int,
 			_ element: Track,
@@ -210,12 +232,17 @@ public class TrackLayout {
 			metrics.tracks = (0..<count).map(factory)
 		}
 		guard !metrics.tracks.isEmpty else { return }
-		prepare(intrinsic)
+		prepare(minimumIntrinsic: minimumIntrinsic, intrinsic: intrinsic)
 		calculateFills(available)
 	}
 
 	private func prepare(
-		_ intrinsic: (
+		minimumIntrinsic: ((
+			_ index: Int,
+			_ element: Track,
+			_ bound: CGFloat
+		) -> CGFloat)?,
+		intrinsic: (
 			_ index: Int,
 			_ element: Track,
 			_ bound: CGFloat
@@ -224,6 +251,8 @@ public class TrackLayout {
 		guard preparedLengths.isEmpty else { return }
 		self.preparedLengths = Array(repeating: 0, count: metrics.tracks.count)
 		self.preparedFillActive = Array(repeating: false, count: metrics.tracks.count)
+		self.preparedFillMinimums = Array(repeating: 0, count: metrics.tracks.count)
+		self.usesMinimumFillSizing = minimumIntrinsic != nil
 		var uniform: [CGFloat] = []
 		uniform.reserveCapacity(metrics.tracks.count)
 		for (index, element) in metrics.tracks.enumerated() {
@@ -246,8 +275,18 @@ public class TrackLayout {
 				let hasContent = !ifContent || intrinsic(index, element, .unbounded) > 0
 				let active = !lockedAtZero && hasContent
 				preparedFillActive[index] = active
-				if active { fillCount += 1 }
-				// Fill lengths are resolved only after available space is known.
+				if active {
+					fillCount += 1
+					if let minimumIntrinsic {
+						preparedFillMinimums[index] = max(
+							0,
+							minimumIntrinsic(index, element, .unbounded)
+						)
+					}
+				}
+				// Zero is the prepared/unresolved Fill baseline. Bounded layout
+				// resolves it from available space; an unbounded Grid probe may
+				// instead resolve it from minimum-content measurements.
 				self.preparedLengths[index] = 0
 			}
 		}
@@ -336,6 +375,9 @@ public class TrackLayout {
 		metrics.size = calculateSize()
 
 		if available == .unbounded {
+			if usesMinimumFillSizing {
+				resolveMinimumFills()
+			}
 			let allFill = metrics.tracks.allSatisfy { track in
 				if case .fill = track.length {
 					return true
@@ -385,6 +427,53 @@ public class TrackLayout {
 			return
 		}
 		self.metrics.size = calculateSize()
+	}
+
+	// Resolve an intrinsic contribution for active Fill tracks when no finite
+	// available size exists. The minimum-content callback supplies each track's
+	// adaptive content floor; fractions derive the provisional fill pool used by
+	// the same sequential allocation semantics as bounded Fill.
+	private func resolveMinimumFills() {
+		guard fillCount > 0 else { return }
+		let defaultFraction = 1.0 / CGFloat(fillCount)
+		var minimumFillPool: CGFloat = 0
+
+		for (index, element) in metrics.tracks.enumerated() {
+			guard preparedFillActive.indices.contains(index), preparedFillActive[index] else { continue }
+			guard case .fill(let fraction, let minimum, let maximum, _) = element.length else { continue }
+
+			let resolvedFraction = max(0, fraction ?? defaultFraction)
+			guard resolvedFraction > 0 else { continue }
+
+			let contentMinimum = preparedFillMinimums.indices.contains(index)
+				? preparedFillMinimums[index]
+				: 0
+			let requiredLength = max(minimum, min(maximum, contentMinimum))
+			minimumFillPool = max(minimumFillPool, requiredLength / resolvedFraction)
+		}
+
+		guard minimumFillPool > 0 else { return }
+
+		if layout == .stack {
+			for (index, element) in metrics.tracks.enumerated() {
+				guard preparedFillActive.indices.contains(index), preparedFillActive[index] else { continue }
+				guard case .fill(let fraction, let minimum, let maximum, _) = element.length else { continue }
+				let resolvedFraction = max(0, fraction ?? defaultFraction)
+				metrics.lengths[index] = max(
+					minimum,
+					min(maximum, resolvedFraction * minimumFillPool)
+				)
+			}
+			metrics.size = calculateSize()
+			return
+		}
+
+		resetSequentialFills()
+		allocateFills(
+			availableFill: minimumFillPool,
+			fillFraction: defaultFraction
+		)
+		metrics.size = calculateSize()
 	}
 
 	private func resetSequentialFills() {

@@ -33,6 +33,14 @@ public struct Panel<C: Renderable>: Renderable {
 		}
 	}
 
+	public func minimumMeasure(bounds: CGSize) -> CGSize {
+		if let content {
+			insets.apply(to: bounds) { content.minimumMeasure(bounds: $0) }
+		} else {
+			.zero
+		}
+	}
+
 	public func render(in allocated: CGRect, measured: CGSize, align: Alignment) {
 		if let content {
 			background?.draw(in: allocated)

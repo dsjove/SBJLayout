@@ -57,6 +57,12 @@ public struct PaginationGroup: Renderable  {
 		return size
 	}
 
+	public func minimumMeasure(bounds: CGSize) -> CGSize {
+		// A minimum-content probe must not publish pagination geometry. Only the
+		// normal measurement pass participates in pagination state.
+		grid.minimumMeasure(bounds: bounds)
+	}
+
 	public func render(in allocated: CGRect, measured: CGSize, align: SBJLayout.Alignment) {
 		let pageOrigin = Self.pagination.renderingGroup(
 			paginationKey,
