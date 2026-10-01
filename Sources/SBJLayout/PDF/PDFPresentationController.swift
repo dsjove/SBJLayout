@@ -26,44 +26,62 @@ public final class PDFPresentationController<PositionID: Hashable> {
 	private var navigationGeneration = UUID()
 	private var highlightTask: Task<Void, Never>?
 	private var pendingPositionID: PositionID?
+	private var isPDFViewReadyForDisplayedDocument = false
 	private var viewportSize: CGSize = .zero
 
 	public init(layout: PDFPresentationLayout = .adaptive()) {
 		self.layout = layout
 	}
 
-	public func update(
-		to newDocument: PDFDocument?,
-		positions newPositions: [PositionID: PaginationPosition],
+	/// Applies a declarative presentation update. New content and a selection may
+	/// be delivered together so the controller can perform the selection only
+	/// after StablePDFView has installed that exact content.
+	public func update(_ update: PDFPresentationUpdate<PositionID>) {
+		if let content = update.content {
+			apply(content: content, selection: update.selection)
+		} else if let selection = update.selection {
+			pendingPositionID = selection
+			performPendingRevealIfReady()
+		}
+	}
+
+	/// Convenience for a selection-only presentation update.
+	public func reveal(_ positionID: PositionID) {
+		update(PDFPresentationUpdate(selection: positionID))
+	}
+
+	private func apply(
+		content: PDFPresentationUpdate<PositionID>.Content,
+		selection: PositionID?
 	) {
-		guard let newDocument else {
+		guard let newDocument = content.document else {
 			displayedDocument = nil
 			positions = [:]
 			pendingPositionID = nil
+			isPDFViewReadyForDisplayedDocument = false
 			continuousController.resetPageState()
 			cancelHighlight()
 			return
 		}
 
+		let newPositions = content.positions
+		let requestedSelection = selection.flatMap { newPositions[$0] == nil ? nil : $0 }
+
 		guard displayedDocument !== newDocument else {
 			positions = newPositions
+			pendingPositionID = requestedSelection
 			performPendingRevealIfReady()
 			return
 		}
 
 		// StablePDFView owns visual document replacement. Keeping a single
-		// SwiftUI/PDFKit host lets it preserve zoom and viewport.
+		// SwiftUI/PDFKit host lets it preserve zoom and viewport. A selection bundled
+		// with this content waits until StablePDFView reports the replacement ready.
 		cancelHighlight()
 		displayedDocument = newDocument
 		positions = newPositions
-		performPendingRevealIfReady()
-	}
-
-	/// Requests a one-shot reveal/highlight of the identified pagination position.
-	/// Calling this again with the same position ID is a new request.
-	public func reveal(_ positionID: PositionID) {
-		pendingPositionID = positionID
-		performPendingRevealIfReady()
+		pendingPositionID = requestedSelection
+		isPDFViewReadyForDisplayedDocument = false
 	}
 
 	/// Layout changes invalidate only the transient highlight rectangle. They do not
@@ -77,11 +95,13 @@ public final class PDFPresentationController<PositionID: Hashable> {
 	}
 
 	public func pdfViewReady() {
+		isPDFViewReadyForDisplayedDocument = true
 		performPendingRevealIfReady()
 	}
 
 	private func performPendingRevealIfReady() {
-		guard let positionID = pendingPositionID,
+		guard isPDFViewReadyForDisplayedDocument,
+			let positionID = pendingPositionID,
 			displayedDocument != nil,
 			let position = positions[positionID]
 		else { return }
