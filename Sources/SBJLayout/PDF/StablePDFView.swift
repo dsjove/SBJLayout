@@ -238,6 +238,15 @@ public final class StablePDFHostView: UIView {
 		UIView.performWithoutAnimation {
 			configurePresentation(desiredLayout)
 			pagesReplaced = replacePages(in: displayedDocument, from: document)
+			if pagesReplaced, pdfView.isUsingPageViewController {
+				// PDFKit's horizontal page-view controller caches the visible page
+				// controllers. Replacing PDFDocument pages in place updates the model but
+				// does not invalidate those cached controllers, leaving the previous PDF
+				// visible until some later layout-mode change rebuilds them. Rebuild the
+				// horizontal presentation immediately after the page transaction.
+				pdfView.usePageViewController(false, withViewOptions: nil)
+				configurePresentation(desiredLayout)
+			}
 			pdfView.layoutIfNeeded()
 			pdfView.layoutDocumentView()
 		}
