@@ -43,6 +43,7 @@ public struct StablePDFView: UIViewRepresentable {
 		host.installInitial(document: document, pageIndex: initialPageIndex) {
 			guard host.represents(document) else { return }
 			controller?.refreshPageState()
+			controller?.documentDidChange()
 			onReady()
 		}
 		return host
@@ -65,9 +66,11 @@ public struct StablePDFView: UIViewRepresentable {
 			return
 		}
 
+		controller?.documentWillChange()
 		host.replaceDocument(with: document) {
 			guard host.represents(document) else { return }
 			controller?.refreshPageState()
+			controller?.documentDidChange()
 			onReady()
 		}
 	}
@@ -711,9 +714,38 @@ public final class StablePDFHostView: UIView {
 
 @MainActor
 final class FitClampedPDFView: PDFView {
+	private lazy var searchOverlay = PDFSearchOverlayView(pdfView: self)
+
 	override func layoutSubviews() {
 		super.layoutSubviews()
 		sbjClampMinimumScaleToFit()
+		if searchOverlay.superview != nil {
+			searchOverlay.frame = bounds
+			bringSubviewToFront(searchOverlay)
+		}
+	}
+
+	func presentSearchMatches(
+		_ matches: [PDFSearchMatch],
+		style: PDFSearchPresentationStyle
+	) {
+		if searchOverlay.superview == nil {
+			searchOverlay.frame = bounds
+			addSubview(searchOverlay)
+		}
+		bringSubviewToFront(searchOverlay)
+		searchOverlay.present(matches, style: style)
+	}
+
+	func clearSearchPresentation() {
+		guard searchOverlay.superview != nil else { return }
+		searchOverlay.clear()
+	}
+
+	func animateSearchMatch(_ match: PDFSearchMatch) {
+		guard searchOverlay.superview != nil else { return }
+		bringSubviewToFront(searchOverlay)
+		searchOverlay.animate(match)
 	}
 }
 

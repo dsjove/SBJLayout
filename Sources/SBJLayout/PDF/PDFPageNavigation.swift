@@ -39,7 +39,6 @@ public struct PDFCurrentPage: Equatable, Sendable, CustomStringConvertible {
         return "\(first)-\(last)/\(pageCount)"
     }
 
-
 	public var pageAccessibilityLabel: String {
 		guard pageCount > 0, pageNumber > 0, displayCount > 0 else {
 			return ""
@@ -69,5 +68,21 @@ public protocol PDFPageNavigating: AnyObject, Observable {
 	func goToPreviousPage()
 	func goToNextPage()
 	func goToLastPage()
+}
+
+/// Search behavior exposed by a PDF navigation controller.
+///
+/// Search state lives with the long-lived PDF view controller so it survives SwiftUI
+/// view recreation and can be rebuilt whenever the displayed PDF pages are regenerated.
+@MainActor
+public protocol PDFTextSearching: AnyObject, Observable {
+	var isSearchPresented: Bool { get set }
+	var searchQuery: String { get set }
+	var isSearchActive: Bool { get }
+	var searchMatchCount: Int { get }
+	var currentSearchMatchNumber: Int? { get }
+	func goToPreviousSearchMatch()
+	func goToNextSearchMatch()
+	func clearSearch()
 }
 #endif
