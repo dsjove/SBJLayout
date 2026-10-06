@@ -40,18 +40,3 @@ public struct TrackedElement: TrackElement {
 		element.minimumMeasure(bounds: bounds)
 	}
 }
-
-// Adapts any TrackElement so GridLayout's ordinary measurement path recursively
-// asks for minimum-content measurements. Used only by Grid.minimumMeasure; it
-// deliberately leaves normal GridLayout measurement/caching untouched.
-internal struct MinimumTrackElement<Base: TrackElement>: TrackElement {
-	let base: Base
-
-	init(_ base: Base) {
-		self.base = base
-	}
-
-	func measure(bounds: CGSize) -> CGSize {
-		base.minimumMeasure(bounds: bounds)
-	}
-}

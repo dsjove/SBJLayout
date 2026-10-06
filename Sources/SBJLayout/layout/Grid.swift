@@ -196,10 +196,11 @@ public struct Grid: Renderable {
 		cells: Cells
 	) {
 		self.render = render
+		let trackedCells = cells.map(TrackedElement.init)
 		self.layout = .init(
 			columns: cols,
 			rows: rows,
-			cells: cells.map(TrackedElement.init),
+			cells: trackedCells,
 			arrangement: arrangement,
 			wrapping: wrapping)
 	}
@@ -222,18 +223,7 @@ public struct Grid: Renderable {
 	}
 
 	public func minimumMeasure(bounds: CGSize) -> CGSize {
-		// Minimum measurement is an independent probe. A temporary layout prevents
-		// minimum-content measurements from contaminating the normal GridLayout
-		// track metrics or measurement cache used later for rendering.
-		let source = layout.definition
-		let minimumLayout = GridLayout<MinimumTrackElement<TrackedElement>>(
-			columns: source.columnFactory,
-			rows: source.rowFactory,
-			cells: source.cells.map(MinimumTrackElement.init),
-			arrangement: source.arrangement,
-			wrapping: source.wrapping
-		)
-		return minimumLayout.measure(bounds: bounds).size
+		layout.minimumMeasure(bounds: bounds)
 	}
 
 	public func render(in allocated: CGRect, measured: CGSize, align: Alignment) {

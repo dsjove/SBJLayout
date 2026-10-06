@@ -269,7 +269,8 @@ public final class StablePDFHostView: UIView {
 		Task { @MainActor [weak self, weak pdfView] in
 			guard let self, let pdfView else { return }
 			// PDFKit still performs part of page-layout invalidation asynchronously.
-			// Let it settle before applying the final viewing state.
+			// Intentional next-turn deferral: let that internal invalidation settle before
+			// applying the final viewing state. Revisit if PDFKit behavior changes.
 			await Task.yield()
 			pdfView.layoutIfNeeded()
 			pdfView.layoutDocumentView()
@@ -278,6 +279,8 @@ public final class StablePDFHostView: UIView {
 				self.restoreTopAtFit(in: pdfView)
 			} else {
 				self.restore(viewport, in: pdfView, zoomPolicy: geometryChanged ? .relativeToFit : .absolute)
+				// Intentional next-turn deferral: PDFKit can adjust its viewport after the
+				// first restore, so restore once more after that adjustment.
 				await Task.yield()
 				guard self.replacementGeneration == generation, self.represents(document) else { return }
 				pdfView.layoutIfNeeded()
@@ -421,10 +424,14 @@ public final class StablePDFHostView: UIView {
 
 		Task { @MainActor [weak self, weak pdfView] in
 			guard let self, let pdfView else { return }
+			// Intentional next-turn deferral: PDFKit finishes establishing its initial
+			// page hierarchy asynchronously; page restoration before then is unstable.
 			await Task.yield()
 			pdfView.layoutIfNeeded()
 			pdfView.layoutDocumentView()
 			self.restoreInitialPage(pageIndex)
+			// Intentional next-turn deferral: PDFKit may make a second initial-layout
+			// adjustment, so verify and restore the logical page after it settles.
 			await Task.yield()
 			guard self.replacementGeneration == generation, self.represents(document) else { return }
 			pdfView.layoutIfNeeded()
@@ -476,6 +483,8 @@ public final class StablePDFHostView: UIView {
 
 		Task { @MainActor [weak self, weak pdfView] in
 			guard let self, let pdfView else { return }
+			// Intentional next-turn deferral: PDFKit applies display-mode/layout changes
+			// asynchronously; restore the viewport only after that first adjustment.
 			await Task.yield()
 			UIView.performWithoutAnimation {
 				pdfView.layoutIfNeeded()
@@ -488,6 +497,8 @@ public final class StablePDFHostView: UIView {
 			}
 
 			if modeChanged {
+				// Intentional next-turn deferral: page-view-controller mode changes can
+				// settle one turn later; perform a final logical-page correction afterward.
 				await Task.yield()
 				pdfView.layoutIfNeeded()
 				pdfView.layoutDocumentView()

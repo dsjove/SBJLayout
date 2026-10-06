@@ -69,7 +69,9 @@ public struct PDFPageControlView<Controller: PDFPageNavigating & PDFTextSearchin
     @ViewBuilder
     private var searchControls: some View {
         TextField("Search PDF", text: $controller.searchQuery)
+#if !os(tvOS)
             .textFieldStyle(.roundedBorder)
+#endif
             .frame(minWidth: 120, idealWidth: 180, maxWidth: 220)
             .focused($searchFieldFocused)
             .submitLabel(.search)
@@ -122,6 +124,7 @@ public struct PDFPageControlView<Controller: PDFPageNavigating & PDFTextSearchin
 
     private func focusSearchField() {
         Task { @MainActor in
+            // Intentional next-turn deferral: SwiftUI must present the search field before focus is requested.
             await Task.yield()
             guard controller.isSearchPresented else { return }
             searchFieldFocused = true
