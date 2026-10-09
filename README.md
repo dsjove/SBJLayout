@@ -58,6 +58,58 @@ Convenience initializers cover common shapes:
 
 Grid can also wrap resolved tracks against a bounded primary axis with `wrapping: .horizontal` or `wrapping: .vertical`. Wrapping changes only rendered geometry and intrinsic grid size; logical cell indices and row/column coordinates remain unchanged. A visible `.fill` track consumes the remainder of its current band and terminates that band. An unbounded primary axis does not wrap.
 
+### Row accessories
+
+A `Grid(table:)` column definition may be `.rowAccessory(placement:gap:align:)`. Its renderable remains in the flattened input sequence, but it is excluded from physical column sizing and rendered before or after the ordinary cells of its logical row at the full measured grid width.
+
+```swift
+Grid(table: [
+    .init(.intrinsic()),
+    .init(.fill()),
+    .rowAccessory(placement: .after, gap: 4, align: .leftTop)
+]) {
+    for item in items {
+        title(item)
+        detail(item)
+        notes(item)
+    }
+}
+```
+
+Multiple accessories may share a placement and appear anywhere in the flattened input definition. They stack in declaration order within each placement group, independently of where the slots occur relative to the ordinary columns:
+
+```swift
+Grid(table: [
+    .rowAccessory(placement: .after, gap: 3),
+    .init(.intrinsic()),
+    .rowAccessory(placement: .before, gap: 2),
+    .init(.fill()),
+    .rowAccessory(placement: .after, gap: 4)
+]) {
+    for item in items {
+        footer(item)
+        title(item)
+        introduction(item)
+        detail(item)
+        notes(item)
+    }
+}
+```
+
+- `placement` accepts `.before` and `.after` (the default). The gap separates the accessory from the ordinary cells in either position.
+- Input stride counts the accessory; physical column count does not.
+- Each row may contain any number of accessories, including repeated `.before` and `.after` placements; the same input stride applies to all rows, including headers.
+- The accessory is measured after physical column sizes are resolved.
+- A nonempty accessory adds its measured height plus its configured vertical gap to the row's intrinsic height.
+- An empty (zero-height) accessory adds no gap.
+- The accessory has its own alignment. Ordinary cells retain the existing union of row and column alignments.
+- The accessory is sent to the existing cell rendering callback with `c == columnCount`.
+- Existing grid instances without `.rowAccessory` preserve their input and sizing semantics.
+
+## Limitations
+
+General-purpose row/column spans are not implemented. Header input follows the same flattened stride. Table grids do not expose horizontal wrapping in their convenience initializer. Fixed-height row tracks may constrain content, including accessories. When accessories are present, column renderer callbacks receive ordinary-cell rectangles per row, so vertical separators stop before accessory content.
+
 ### Track sizes
 
 `TrackSize` supports:
@@ -143,11 +195,11 @@ SwiftUI helpers are included for displaying a `PDFDocument`, keeping PDFKit behi
 
 SBJLayout is for static document layout, not dynamic application UI. It intentionally does not attempt to provide live collection diffing, scrolling, animation, or reactive invalidation.
 
-Current grid work is row-major and non-spanning. Track spans, wrapping, cross-grid sizing synchronization, dynamic spacer-style gaps, lexical alignment, and similar advanced table features are future features rather than compatibility obligations.
+Current grid work is row-major and does not implement general row/column spanning. Row accessories are supported in table grids, but arbitrary track spans, wrapping, cross-grid sizing synchronization, dynamic spacer-style gaps, lexical alignment, and similar advanced table features are future features rather than compatibility obligations.
 
 ## Tests
 
-The test suite covers geometry helpers, alignment/aspect behavior, builders, track factories and allocation, minimum-content and nested fill behavior, grid definition/layout behavior, text measurement semantics, jargon, pagination, and unbounded sentinel handling.
+The test suite includes row-accessory measurement and geometry tests and covers geometry helpers, alignment/aspect behavior, builders, track factories and allocation, minimum-content and nested fill behavior, grid definition/layout behavior, text measurement semantics, jargon, pagination, and unbounded sentinel handling.
 
 Run with a Swift 6.4 toolchain:
 

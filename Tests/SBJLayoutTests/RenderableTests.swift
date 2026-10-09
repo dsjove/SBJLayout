@@ -41,4 +41,28 @@ struct RenderableTests {
 		let ids = values.compactMap { ($0 as? Stub)?.id }
 		#expect(ids == [1, 3])
 	}
+    @Test("Array renderables maps and flattens builder output")
+    func arrayRenderableMapping() {
+        let values = [1, 2, 3].renderables { id in
+            Stub(id: id)
+            if id.isMultiple(of: 2) {
+                Stub(id: id * 10)
+            }
+        }
+
+        #expect(values.compactMap { ($0 as? Stub)?.id } == [1, 2, 20, 3])
+    }
+
+    @Test("Array renderables supports empty arrays and empty builder output")
+    func arrayRenderableMappingEmpty() {
+        let empty = [Int]().renderables { id in
+            Stub(id: id)
+        }
+        let omitted = [1, 2].renderables { id in
+            if id > 2 { Stub(id: id) }
+        }
+        #expect(empty.isEmpty)
+        #expect(omitted.isEmpty)
+    }
+
 }

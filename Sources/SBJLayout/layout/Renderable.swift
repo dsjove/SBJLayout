@@ -54,6 +54,19 @@ public struct EmptyRenderable: Renderable {
 public typealias Renderables = [any Renderable]
 public typealias RenderableBuilder = TypedFlattenedBuilder<any Renderable>
 
+/// Maps each array element to one or more renderables, flattening the results
+/// in source order. Each element may contribute zero or multiple renderables.
+public extension Array {
+    @RenderableBuilder
+    func renderables(
+        @RenderableBuilder _ content: (Element) -> Renderables
+    ) -> Renderables {
+        for element in self {
+            content(element)
+        }
+    }
+}
+
 @resultBuilder
 public struct TypedFlattenedBuilder<Element> {
 	public typealias Component = [Element]

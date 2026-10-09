@@ -82,7 +82,7 @@ public extension Grid {
 	) {
 		let cells = cells()
 
-		let tableColumns: [Column] = {
+		let tableColumnsUnmapped: [Column] = {
 			let columns = if let leader {
 				[leader] + cols
 			} else {
@@ -99,6 +99,8 @@ public extension Grid {
 				}
 			}
 		}()
+
+		let tableColumns = tableColumnsUnmapped.indices.map { tableColumnsUnmapped[columnMap?($0) ?? $0] }
 
 		let tableRows = TrackFactory(
 			minCount: rows.minCount,
@@ -120,9 +122,12 @@ public extension Grid {
 		}
 
 		self.init(
-			cols: .init(tableColumns, map: columnMap),
+			cols: .init(tableColumns.enumerated().filter { $0.element.role == .normal }.map { $0.element }, map: nil),
 			rows: tableRows,
 			render: .init(column: colRender, row: rowRender, cell: cellRender),
+			accessories: tableColumns.indices.filter { tableColumns[$0].role.isAccessory }.map { index in
+                .init(inputStride: tableColumns.count, slot: index, track: tableColumns[index], physicalSlots: tableColumns.indices.filter { tableColumns[$0].role == .normal })
+            },
 			cells: cells)
 	}
 }
@@ -176,6 +181,7 @@ public struct Grid: Renderable {
 		render: Render = .init(),
 		arrangement: TrackArrangement = .gaps,
 		wrapping: TrackAxis? = nil,
+		accessories: [Definition.RowAccessory] = [],
 		@RenderableBuilder cells: ()->Cells
 	) {
 		self.init(
@@ -184,6 +190,7 @@ public struct Grid: Renderable {
 			render: render,
 			arrangement: arrangement,
 			wrapping: wrapping,
+			accessories: accessories,
 			cells: cells())
 	}
 
@@ -193,6 +200,7 @@ public struct Grid: Renderable {
 		render: Render = .init(),
 		arrangement: TrackArrangement = .gaps,
 		wrapping: TrackAxis? = nil,
+		accessories: [Definition.RowAccessory] = [],
 		cells: Cells
 	) {
 		self.render = render
@@ -202,7 +210,8 @@ public struct Grid: Renderable {
 			rows: rows,
 			cells: trackedCells,
 			arrangement: arrangement,
-			wrapping: wrapping)
+			wrapping: wrapping,
+			accessories: accessories)
 	}
 
 	public private(set) var id: String = ""

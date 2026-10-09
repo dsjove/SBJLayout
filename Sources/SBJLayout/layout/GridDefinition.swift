@@ -1,6 +1,58 @@
 import CoreGraphics
 
 public struct GridDefinition<Cell: TrackElement> {
+    public struct RowAccessory {
+        public let inputStride: Int
+        public let slot: Int
+        public let track: Track
+        public let physicalSlots: [Int]
+        public init(inputStride: Int, slot: Int, track: Track, physicalSlots: [Int]) {
+            self.inputStride = inputStride
+            self.slot = slot
+            self.track = track
+            self.physicalSlots = physicalSlots
+        }
+    }
+    public let accessories: [RowAccessory]
+    public func accessoryIndex(row: Int, accessory: RowAccessory) -> Int? {
+        let index = row * accessory.inputStride + accessory.slot
+        return index >= 0 && index < cellCount ? index : nil
+    }
+    private func accessoryContentHeight(row: Int, accessory: RowAccessory) -> CGFloat {
+        guard let index = accessoryIndex(row: row, accessory: accessory),
+              measured.indices.contains(index) else { return 0 }
+        return max(0, measured[index].height)
+    }
+    private func accessoryAllocatedHeight(row: Int, accessory: RowAccessory) -> CGFloat {
+        let height = accessoryContentHeight(row: row, accessory: accessory)
+        return height > 0 ? height + max(0, accessory.track.gap) : 0
+    }
+    public func accessoryHeight(row: Int) -> CGFloat {
+        accessories.reduce(0) { $0 + accessoryAllocatedHeight(row: row, accessory: $1) }
+    }
+    private func accessoryHeight(row: Int, placement: Track.AccessoryPlacement) -> CGFloat {
+        accessories.filter { $0.track.role.accessoryPlacement == placement }
+            .reduce(0) { $0 + accessoryAllocatedHeight(row: row, accessory: $1) }
+    }
+    public func accessoryRect(_ origin: CGPoint = .zero, row: Int, accessory: RowAccessory) -> CGRect? {
+        let height = accessoryContentHeight(row: row, accessory: accessory)
+        guard height > 0 else { return nil }
+        let rowRect = allocatedRect(origin, row: row)
+        let preceding = accessories.filter {
+            $0.slot < accessory.slot && $0.track.role.accessoryPlacement == accessory.track.role.accessoryPlacement
+        }.reduce(CGFloat.zero) { $0 + accessoryAllocatedHeight(row: row, accessory: $1) }
+        let y: CGFloat
+        switch accessory.track.role.accessoryPlacement {
+        case .before:
+            y = rowRect.minY + preceding
+        case .after:
+            y = rowRect.maxY - accessoryHeight(row: row, placement: .after) + preceding + max(0, accessory.track.gap)
+        case .none:
+            return nil
+        }
+        return CGRect(x: rowRect.minX, y: y, width: rowRect.width, height: height)
+    }
+
 	public struct TrackIteration {
 		public let definition: GridDefinition
 		public let track: Track
@@ -43,10 +95,12 @@ public struct GridDefinition<Cell: TrackElement> {
 		rows: TrackFactory = .init(),
 		cells: [Cell],
 		arrangement: TrackArrangement = .gaps,
-		wrapping: TrackAxis? = nil
+		wrapping: TrackAxis? = nil,
+        accessories: [RowAccessory] = []
 	) {
 		self.init(
 			columnFactory: columns,
+            accessories: accessories,
 			rowFactory: rows,
 			cells: cells,
 			arrangement: arrangement,
@@ -64,6 +118,7 @@ public struct GridDefinition<Cell: TrackElement> {
 
 	private init(
 		columnFactory: TrackFactory,
+        accessories: [RowAccessory],
 		rowFactory: TrackFactory,
 		cells: [Cell],
 		arrangement: TrackArrangement,
@@ -77,6 +132,7 @@ public struct GridDefinition<Cell: TrackElement> {
 		wrappedCrossMetrics: [TrackMetrics],
 		wrappedCrossOffsets: [CGFloat]
 	) {
+		self.accessories = accessories
 		self.columnFactory = columnFactory
 		self.rowFactory = rowFactory
 		self.cells = cells
@@ -114,7 +170,7 @@ public struct GridDefinition<Cell: TrackElement> {
 	}
 
 	public var wantedRowCount: Int {
-		columnCount > 0 ? (cells.count + columnCount - 1) / columnCount : 0
+		inputStride > 0 ? (cells.count + inputStride - 1) / inputStride : 0
 	}
 
 	public var rowCount: Int {
@@ -122,7 +178,7 @@ public struct GridDefinition<Cell: TrackElement> {
 	}
 
 	public var cellCount: Int {
-		rowFactory.maxCount > 0 ? min(cells.count, rowCount * columnCount) : 0
+		rowFactory.maxCount > 0 ? min(cells.count, rowCount * inputStride) : 0
 	}
 
 	public var isEmpty: Bool {
@@ -161,6 +217,7 @@ public struct GridDefinition<Cell: TrackElement> {
 	) -> Self {
 		.init(
 			columnFactory: columnFactory,
+            accessories: accessories,
 			rowFactory: rowFactory,
 			cells: cells,
 			arrangement: arrangement,
@@ -176,8 +233,10 @@ public struct GridDefinition<Cell: TrackElement> {
 		)
 	}
 
+	public var inputStride: Int { accessories.first?.inputStride ?? columnCount }
+
 	public func cellIdx(_ c: Int, _ r: Int) -> Int {
-		c + (r * columnCount)
+		(accessories.first?.physicalSlots[c] ?? c) + (r * inputStride)
 	}
 
 	public func cell(at index: Int) -> Cell? {
@@ -287,11 +346,11 @@ public struct GridDefinition<Cell: TrackElement> {
 			let band = band(forWrappedTrack: column)
 			height = crossMetrics(for: band).lengths[row]
 		} else {
-			height = rows.lengths[row]
+			height = max(0, rows.lengths[row] - accessoryHeight(row: row))
 		}
 		return .init(
 			x: x,
-			y: y,
+			y: y + ((wrapping != .horizontal && accessoryHeight(row: row, placement: .before) > 0) ? accessoryHeight(row: row, placement: .before) : 0),
 			width: columns.lengths[column],
 			height: height
 		)
@@ -326,6 +385,16 @@ public struct GridDefinition<Cell: TrackElement> {
 		}
 	}
 
+    // A table may retain zero-width columns (for example, when its header-only
+    // columns are suppressed). Do not emit a trailing separator callback for
+    // the last *visible* ordinary column in an accessory table.
+    private func hasVisibleColumn(after column: Int) -> Bool {
+        guard column + 1 < columnCount else { return false }
+        return ((column + 1)..<columnCount).contains { index in
+            columns.lengths.indices.contains(index) && columns.lengths[index] > 0
+        }
+    }
+
 	private var hasResolvedWrapping: Bool {
 		wrapping != .none && wrappedBandSizes.count > 1
 	}
@@ -349,7 +418,7 @@ public struct GridDefinition<Cell: TrackElement> {
 		}
 
 		let origin = allocated.origin
-		if let rColumn {
+		if let rColumn, accessories.isEmpty {
 			for c in 0..<columnCount {
 				for rect in allocatedRects(origin, column: c) {
 					if (truncate ? rect.maxX : rect.minX) > allocated.maxX { continue }
@@ -381,6 +450,13 @@ public struct GridDefinition<Cell: TrackElement> {
 					))
 				}
 			}
+            if let rColumn, !accessories.isEmpty {
+                for c in 0..<columnCount {
+                    let rect = allocatedRect(origin, column: c, row: r)
+                    guard !rect.isEmpty, hasVisibleColumn(after: c) else { continue }
+                    rColumn(.init(definition: self, track: columns.tracks[c], index: c, rect: rect))
+                }
+            }
 			for c in 0..<columnCount {
 				let rect = allocatedRect(origin, column: c, row: r)
 				if (truncate ? rect.maxX : rect.minX) > allocated.maxX { continue }
@@ -399,6 +475,12 @@ public struct GridDefinition<Cell: TrackElement> {
 					alignment: rowAlignment.union(columnAlignment)
 				))
 			}
+            for accessory in accessories {
+                guard let i = accessoryIndex(row: r, accessory: accessory),
+                      let rect = accessoryRect(origin, row: r, accessory: accessory), !rect.isEmpty else { continue }
+                rCell(.init(definition: self, cell: cell(at: i), c: columnCount, r: r, i: i,
+                            rect: rect, content: measuredSize(at: i), alignment: accessory.track.align))
+            }
 		}
 	}
 
@@ -413,7 +495,7 @@ public struct GridDefinition<Cell: TrackElement> {
 		let maxX = allocated.maxX
 		let maxY = allocated.maxY
 
-		if let rColumn {
+		if let rColumn, accessories.isEmpty {
 			for c in 0..<columnCount {
 				let rect = allocatedRect(origin, column: c)
 				if (truncate ? rect.maxX : rect.minX) > maxX { break }
@@ -440,6 +522,13 @@ public struct GridDefinition<Cell: TrackElement> {
 					rect: rowRect
 				))
 			}
+            if let rColumn, !accessories.isEmpty {
+                for c in 0..<columnCount {
+                    let rect = allocatedRect(origin, column: c, row: r)
+                    guard !rect.isEmpty, hasVisibleColumn(after: c) else { continue }
+                    rColumn(.init(definition: self, track: columns.tracks[c], index: c, rect: rect))
+                }
+            }
 			for c in 0..<columnCount {
 				let rect = allocatedRect(origin, column: c, row: r)
 				if (truncate ? rect.maxX : rect.minX) > maxX { break }
@@ -457,6 +546,12 @@ public struct GridDefinition<Cell: TrackElement> {
 					alignment: rowAlignment.union(columnAlignment)
 				))
 			}
+            for accessory in accessories {
+                guard let i = accessoryIndex(row: r, accessory: accessory),
+                      let rect = accessoryRect(origin, row: r, accessory: accessory), !rect.isEmpty else { continue }
+                rCell(.init(definition: self, cell: cell(at: i), c: columnCount, r: r, i: i,
+                            rect: rect, content: measuredSize(at: i), alignment: accessory.track.align))
+            }
 		}
 	}
 

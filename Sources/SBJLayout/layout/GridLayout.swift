@@ -34,14 +34,16 @@ public final class GridLayout<Element: TrackElement> {
 		rows: TrackFactory = .init(),
 		cells: [Element],
 		arrangement: TrackArrangement = .gaps,
-		wrapping: TrackAxis? = nil
+		wrapping: TrackAxis? = nil,
+        accessories: [Definition.RowAccessory] = []
 	) {
 		let definition = Definition(
 			columns: columns,
 			rows: rows,
 			cells: cells,
 			arrangement: arrangement,
-			wrapping: wrapping
+			wrapping: wrapping,
+            accessories: accessories
 		)
 		self.definition = definition
 		self.columns = definition.columnLayout
@@ -78,6 +80,7 @@ public final class GridLayout<Element: TrackElement> {
 
 		let revisionBeforeResolvedMeasurement = measurementRevision
 		measureElementsForResolvedColumns()
+        measureAccessories(minimum: false)
 		if measurementRevision != revisionBeforeResolvedMeasurement {
 			rows.invalidate()
 		}
@@ -156,6 +159,7 @@ public final class GridLayout<Element: TrackElement> {
 
 		let revisionBeforeResolvedMeasurement = minimumMeasurementRevision
 		minimumMeasureElementsForResolvedColumns()
+        measureAccessories(minimum: true)
 		if minimumMeasurementRevision != revisionBeforeResolvedMeasurement {
 			minimumRows.invalidate()
 		}
@@ -295,6 +299,29 @@ public final class GridLayout<Element: TrackElement> {
 		}
 	}
 
+    private func measureAccessories(minimum: Bool) {
+        guard !definition.accessories.isEmpty else { return }
+        let metrics = minimum ? minimumColumns.metrics : columns.metrics
+        let width = metrics.size
+        for row in 0..<definition.rowCount {
+            for accessory in definition.accessories {
+                guard let index = definition.accessoryIndex(row: row, accessory: accessory) else { continue }
+                let bounds = CGSize(width: width, height: .unbounded)
+                if minimum { _ = minimumMeasureElement(at: index, bounds: bounds) }
+                else { measureElement(at: index, bounds: bounds) }
+            }
+        }
+    }
+
+    private func additionalHeight(row: Int, minimum: Bool) -> CGFloat {
+        definition.accessories.reduce(CGFloat.zero) { sum, accessory in
+            guard let index = definition.accessoryIndex(row: row, accessory: accessory) else { return sum }
+            let size = minimum ? minimumMeasurements[index]?.size : measurements[index]?.size
+            guard let size, size.height > 0 else { return sum }
+            return sum + size.height + max(0, accessory.track.gap)
+        }
+    }
+
 	private func intrinsicRowHeight(_ row: Int, track: Track, _ bound: CGFloat) -> CGFloat {
 		intrinsicRowHeight(row, track: track, bound, horizontalBand: nil, wrappedBands: [])
 	}
@@ -318,7 +345,7 @@ public final class GridLayout<Element: TrackElement> {
 				candidates.append(candidate)
 			}
 		}
-		return track.aggregate(candidates) ?? 0
+		return (track.aggregate(candidates) ?? 0) + additionalHeight(row: row, minimum: false)
 	}
 
 	private func minimumRowHeight(_ row: Int, track: Track, _ bound: CGFloat) -> CGFloat {
@@ -347,7 +374,7 @@ public final class GridLayout<Element: TrackElement> {
 			)
 			candidates.append(size.height)
 		}
-		return track.aggregate(candidates) ?? 0
+		return (track.aggregate(candidates) ?? 0) + additionalHeight(row: row, minimum: true)
 	}
 
 	private func intrinsicMinimumContentRowHeight(_ row: Int, track: Track, _ bound: CGFloat) -> CGFloat {
@@ -373,7 +400,7 @@ public final class GridLayout<Element: TrackElement> {
 				candidates.append(candidate)
 			}
 		}
-		return track.aggregate(candidates) ?? 0
+		return (track.aggregate(candidates) ?? 0) + additionalHeight(row: row, minimum: true)
 	}
 
 	private func minimumContentRowHeight(_ row: Int, track: Track, _ bound: CGFloat) -> CGFloat {
@@ -402,7 +429,7 @@ public final class GridLayout<Element: TrackElement> {
 			)
 			candidates.append(size.height)
 		}
-		return track.aggregate(candidates) ?? 0
+		return (track.aggregate(candidates) ?? 0) + additionalHeight(row: row, minimum: true)
 	}
 
 	private func trailingGap(in metrics: TrackMetrics) -> CGFloat {
