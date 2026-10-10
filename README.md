@@ -10,7 +10,7 @@ The core model is deliberately small:
 - `Grid` is the primary layout primitive.
 - `Track`, `TrackSize`, and `TrackFactory` describe column and row sizing.
 - `Insets`, `Alignment`, `Aspect`, and `AspectRatio` provide reusable geometry behavior.
-- `Pagination` and `PaginationGroup` split measured content into pages.
+- `PaginationGroup` declares logical pagination boundaries in a builder; `Pagination` assigns measured content units to pages without changing Grid cell counts.
 - `PDFGenerator` renders a `Renderable` tree into PDF data.
 - `JCSLink` adds hyperlink annotations around renderables without leaking Core Graphics PDF context handling to clients.
 - `JCSText`, `JCSImage`, `JCSRect`, and `JCSLine` provide basic UIKit/Core Graphics content and drawing wrappers.
@@ -177,13 +177,27 @@ Use `RenderableEnvironment.withContext(...)` to render or measure with an explic
 
 `PageLayout` combines a `PageSize`, landscape flag, and margins. `PageSize` includes North American, ISO A-series, photo, zero/unbounded, and custom dimensions.
 
-`PaginationGroup` registers itself with the current `Pagination`, measures its grid, and supports three behaviors:
+`PaginationGroup` is a **structural builder directive**, not a `Renderable` or a layout container. It does not create a Grid, measure content, or advance pages. The containing Grid measures its ordinary cells, while its `RenderableBuilder` keeps the groups' logical boundaries for the document-level paginator.
 
-- `.flow` — normal page flow.
-- `.keepWith` — attach the group to the preceding pagination unit where possible.
-- `.page` — force a page break before the group.
+```swift
+Grid(vertFlow: .init(.fill())) {
+    PaginationGroup(sectionID: "spells") {          // .flow by default
+        SectionTitle()
+        PaginationGroup { WizardSpells() }
+        PaginationGroup { ClericSpells() }
+    }
+}
+```
 
-Pagination is measurement-driven: groups must be measured before their render positions are resolved.
+The three behaviors are:
+
+- `.flow` (default) — permits a page break before the group when necessary.
+- `.keepWith` — Keep With Above: attach the first logical unit to the preceding unit.
+- `.page` — force one page transition at the group's entry (coincident parent/child requirements collapse).
+
+Content remains indivisible unless an authorized group boundary permits a split. Nested groups, oversize behavior, page decoration handling, and the rule forbidding splits within horizontal Grid rows are specified in [PaginationRules.md](Sources/SBJLayout/pagination/PaginationRules.md).
+
+Pagination now performs **measurement, then a pre-render page-planning pass, then rendering**. The planner knows the complete page count before headers and footers are drawn. This change intentionally removes the old `PaginationGroup(sectionID:behavior:groupGap:dimension:content:)` layout-wrapper API; callers own their Grids explicitly.
 
 ## PDF generation
 

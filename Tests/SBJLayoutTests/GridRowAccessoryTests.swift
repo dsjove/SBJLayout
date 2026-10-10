@@ -124,7 +124,8 @@ struct GridRowAccessoryTests {
             #expect(column.rect.height == 12)
             columnSegments += 1
         }, cell: { _ in })
-        #expect(columnSegments == 2)
+        // Column decorations are separators: the last visible column has no trailing separator.
+        #expect(columnSegments == 1)
     }
 
     @Test("Empty accessories do not introduce spacing among duplicate placements")

@@ -65,4 +65,26 @@ struct RenderableTests {
         #expect(omitted.isEmpty)
     }
 
+    @Test("RenderableBuilder supports nested table rows")
+    func nestedRows() {
+        let values = build {
+            [[Stub(id: 1), Stub(id: 2)], [Stub(id: 3), Stub(id: 4)]]
+        }
+        #expect(values.compactMap { ($0 as? Stub)?.id } == [1, 2, 3, 4])
+    }
+
+    @Test("TypedFlattenedBuilder remains available for non-renderable content")
+    func typedFields() {
+        func fields(@TypedFlattenedBuilder<Int> _ contents: () -> [Int]) -> [Int] {
+            contents()
+        }
+        let values = fields {
+            1
+            [2, 3]
+            [[4, 5], [6]]
+            if true { 7 }
+        }
+        #expect(values == [1, 2, 3, 4, 5, 6, 7])
+    }
+
 }

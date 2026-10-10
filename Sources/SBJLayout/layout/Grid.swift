@@ -1,5 +1,11 @@
 import CoreGraphics
-// TODO: Feature - Pagination policies
+import Foundation
+// TODO: Feature - Automatic pagination at complete wrapped-row boundaries.
+// Today, PaginationGroup directives in the builder are the only source of break
+// permission. When wrapping creates a new *physical* row, Grid could emit an
+// implicit .flow boundary before that whole row. Use the same logical event
+// representation as explicit PaginationGroups; do not invent coordinate hints,
+// split a row's cells, or silently change content grouping.
 // TODO: Feature - Pivot Table
 // TODO: Feature - Wrapping header duplication?
 // TODO: Feature - identifiable reducers and groupings for uniform Tracks
@@ -41,33 +47,33 @@ public extension Grid {
 	init(
 		horzFlow col: Column, wrapped at: Int? = nil,
 		rows: Rows = .init(align: .left),
-		@RenderableBuilder cells: ()->Cells,
+		@RenderableBuilder cells: ()->Renderables,
 		colRender: ((ColumnIteration)->())? = nil,
 		rowRender: ((RowIteration)->())? = nil,
 		cellRender: ((CellIteration)->())? = nil
 	) {
-		let cells = cells()
+		let content = cells()
 		self.init(
-			cols: .init(Array(repeating: col, count: at ?? cells.count)),
+			cols: .init(Array(repeating: col, count: at ?? content.content.count)),
 			rows: rows,
 			render: .init(column: colRender, row: rowRender, cell: cellRender),
-			cells: cells)
+            content: content)
 	}
 
 	init(
 		vertFlow col: Column,
 		rows: Rows = .init(align: .centerY),
-		@RenderableBuilder cells: ()->Cells,
+		@RenderableBuilder cells: ()->Renderables,
 		colRender: ((ColumnIteration)->())? = nil,
 		rowRender: ((RowIteration)->())? = nil,
 		cellRender: ((CellIteration)->())? = nil
 	) {
-		let cells = cells()
+		let content = cells()
 		self.init(
 			cols: .init(col: col),
 			rows: rows,
 			render: .init(column: colRender, row: rowRender, cell: cellRender),
-			cells: cells)
+			content: content)
 	}
 
 	init(
@@ -75,12 +81,12 @@ public extension Grid {
 		header: Track? = nil,
 		leader: Track? = nil,
 		rows: TrackFactory = .init(),
-		@RenderableBuilder cells: ()->Cells,
+		@RenderableBuilder cells: ()->Renderables,
 		colRender: ((ColumnIteration)->())? = nil,
 		rowRender: ((RowIteration)->())? = nil,
 		cellRender: ((CellIteration)->())? = nil
 	) {
-		let cells = cells()
+		let content = cells()
 
 		let tableColumnsUnmapped: [Column] = {
 			let columns = if let leader {
@@ -126,9 +132,9 @@ public extension Grid {
 			rows: tableRows,
 			render: .init(column: colRender, row: rowRender, cell: cellRender),
 			accessories: tableColumns.indices.filter { tableColumns[$0].role.isAccessory }.map { index in
-                .init(inputStride: tableColumns.count, slot: index, track: tableColumns[index], physicalSlots: tableColumns.indices.filter { tableColumns[$0].role == .normal })
-            },
-			cells: cells)
+				.init(inputStride: tableColumns.count, slot: index, track: tableColumns[index], physicalSlots: tableColumns.indices.filter { tableColumns[$0].role == .normal })
+			},
+			content: content)
 	}
 }
 
@@ -141,7 +147,7 @@ if debugDrawCells {
 	}
 }
 
-public struct Grid: Renderable {
+public struct Grid: Renderable, PaginationTraversable {
 //MARK: Types
 	public typealias Layout = GridLayout<TrackedElement>
 	public typealias Definition = GridDefinition<TrackedElement>
@@ -182,7 +188,7 @@ public struct Grid: Renderable {
 		arrangement: TrackArrangement = .gaps,
 		wrapping: TrackAxis? = nil,
 		accessories: [Definition.RowAccessory] = [],
-		@RenderableBuilder cells: ()->Cells
+		@RenderableBuilder cells: ()->Renderables
 	) {
 		self.init(
 			cols: cols,
@@ -191,7 +197,22 @@ public struct Grid: Renderable {
 			arrangement: arrangement,
 			wrapping: wrapping,
 			accessories: accessories,
-			cells: cells())
+			content: cells())
+	}
+
+    private init(
+		cols: Columns,
+		rows: Rows,
+		render: Render,
+		arrangement: TrackArrangement = .gaps,
+		wrapping: TrackAxis? = nil,
+		accessories: [Definition.RowAccessory] = [],
+		content: Renderables
+	) {
+		self.init(
+			cols: cols, rows: rows, render: render,
+			arrangement: arrangement, wrapping: wrapping,
+			accessories: accessories, flattened: FlattenedPaginationContent(content))
 	}
 
 	public init(
@@ -203,8 +224,25 @@ public struct Grid: Renderable {
 		accessories: [Definition.RowAccessory] = [],
 		cells: Cells
 	) {
+		self.init(cols: cols, rows: rows, render: render,
+			arrangement: arrangement, wrapping: wrapping,
+			accessories: accessories, flattened: FlattenedPaginationContent(
+			Renderables(cells.map { .content($0) })))
+	}
+
+	private init(
+		cols: Columns,
+		rows: Rows,
+		render: Render,
+		arrangement: TrackArrangement,
+		wrapping: TrackAxis?,
+		accessories: [Definition.RowAccessory],
+		flattened: FlattenedPaginationContent
+	) {
 		self.render = render
-		let trackedCells = cells.map(TrackedElement.init)
+		self.paginationID = UUID()
+		self.paginationContent = flattened
+		let trackedCells = flattened.cells.map(TrackedElement.init)
 		self.layout = .init(
 			columns: cols,
 			rows: rows,
@@ -225,6 +263,22 @@ public struct Grid: Renderable {
 //MARK: API
 	public let layout: Layout
 	public let render: Render
+	let paginationID: UUID
+	let paginationContent: FlattenedPaginationContent
+
+	var hasPaginationGroups: Bool {
+		paginationContent.hasGroups || paginationContent.cells.contains {
+			($0 as? any PaginationTraversable)?.hasPaginationGroups == true
+		}
+	}
+
+	func collectPaginationEvents(
+		in allocated: CGRect, measured: CGSize, align: Alignment,
+		into events: inout [PaginationEvent]
+	) {
+		RenderableEnvironment.context.pagination.collectEvents(
+			from: self, in: allocated, measured: measured, align: align, into: &events)
+	}
 
 	public func measure(bounds: CGSize) -> CGSize {
 		let definition = layout.measure(bounds: bounds)
@@ -241,11 +295,7 @@ public struct Grid: Renderable {
 if debugDrawAllocated {
 	JCSRect(stroke: .blue.withAlphaComponent(0.5) , lineWidth: 1.5).draw(in: positioned)
 }
-		definition.iterate(
-			allocated: positioned,
-			column: render.column,
-			row: render.row,
-			cell: render.cell
-		)
+		RenderableEnvironment.context.pagination.renderGrid(
+			self, definition: definition, positioned: positioned)
 	}
 }

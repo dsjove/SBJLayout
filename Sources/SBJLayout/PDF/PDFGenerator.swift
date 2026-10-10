@@ -133,6 +133,7 @@ public struct PDFGenerator {
 			RenderableEnvironment.withContext(jargon: jargon, pagination: pagination) {
 				let measured = content.measure(bounds: CGSize(fixedWidth: pagination.contentRect.width))
 				let allocated = CGRect(origin: pagination.printableRect.origin, size: measured)
+				pagination.prepare(content, in: allocated, measured: measured)
 				content.render(in: allocated)
 
 				if let openPage {

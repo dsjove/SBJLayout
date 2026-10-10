@@ -1,215 +1,345 @@
+import Foundation
 import CoreGraphics
 import Testing
 @testable import SBJLayout
 
-@Suite("Pagination behavior")
+@Suite("Directive pagination")
 struct PaginationTests {
-	private func pagination() -> Pagination {
-		Pagination(layout: .init(
-			pageSize: .custom(width: 100, height: 100),
-			margins: .zero
-		))
-	}
+    private final class Box: Renderable {
+        let size: CGSize
+        private(set) var drawn: [CGRect] = []
 
-	@Test("Keep-with moves the preceding group with the current group")
-	func keepWithPrevious() {
-		let pagination = pagination()
-		let first = pagination.registerGroup(sectionID: "first")
-		let second = pagination.registerGroup(sectionID: "second")
-		let third = pagination.registerGroup(sectionID: "third")
+        init(height: CGFloat, width: CGFloat = 100) {
+            size = CGSize(width: width, height: height)
+        }
 
-		pagination.measuredGroup(first, CGSize(width: 100, height: 60), behavior: .flow, spacingBefore: 0)
-		pagination.measuredGroup(second, CGSize(width: 100, height: 30), behavior: .flow, spacingBefore: 0)
-		#expect(pagination.pageNumber == 1)
+        func measure(bounds: CGSize) -> CGSize { size }
+        func render(in allocated: CGRect, measured: CGSize, align: Alignment) {
+            drawn.append(allocated)
+        }
+    }
 
-		pagination.measuredGroup(third, CGSize(width: 100, height: 20), behavior: .keepWith, spacingBefore: 0)
-		#expect(pagination.pageNumber == 2)
+    private func pagination(
+        pages: Range<Int>? = nil,
+        paging: ((Pagination) -> Void)? = nil
+    ) -> Pagination {
+        Pagination(
+            layout: .init(pageSize: .custom(width: 100, height: 100), margins: .zero),
+            pages: pages,
+            paging: paging
+        )
+    }
 
-		// The keep-with relationship forms a 50-point unit, so the second group,
-		// not the third, becomes the start of page two.
-		_ = pagination.renderingGroup(first, frame: CGRect(origin: .zero, size: CGSize(width: 100, height: 60)))
-		let secondOrigin = pagination.renderingGroup(second, frame: CGRect(origin: CGPoint(x: 0, y: 60), size: CGSize(width: 100, height: 30)))
-		let thirdOrigin = pagination.renderingGroup(third, frame: CGRect(origin: CGPoint(x: 0, y: 90), size: CGSize(width: 100, height: 20)))
-		#expect(secondOrigin.y == 0)
-		#expect(thirdOrigin.y == 30)
-	}
+    private func execute(
+        _ pagination: Pagination,
+        _ content: () -> Grid
+    ) -> (Grid, CGSize) {
+        RenderableEnvironment.withContext(pagination: pagination) {
+            let grid = content()
+            let measured = grid.measure(bounds: CGSize(width: 100, height: 1000))
+            let allocated = CGRect(origin: .zero, size: measured)
+            pagination.prepare(grid, in: allocated, measured: measured)
+            grid.render(in: allocated, measured: measured, align: .leftTop)
+            return (grid, measured)
+        }
+    }
 
-	@Test("Page behavior forces a new page except for the first group")
-	func forcedPage() {
-		let pagination = pagination()
-		let first = pagination.registerGroup(sectionID: "first")
-		let second = pagination.registerGroup(sectionID: "second")
+    @Test("Prepare activates the initial page, including standalone renderables")
+    func prepareActivatesFirstPage() {
+        var opened: [Int] = []
+        let planner = pagination(paging: { opened.append($0.currentPageIndex ?? -1) })
+        RenderableEnvironment.withContext(pagination: planner) {
+            let box = Box(height: 20)
+            let measured = box.measure(bounds: CGSize(width: 100, height: 100))
+            let allocated = CGRect(origin: .zero, size: measured)
+            planner.prepare(box, in: allocated, measured: measured)
+            #expect(opened == [0])
+            #expect(planner.currentPageIndex == 0)
+            box.render(in: allocated, measured: measured, align: .leftTop)
+            #expect(opened == [0])
+        }
+    }
 
-		pagination.measuredGroup(first, CGSize(width: 100, height: 20), behavior: .page, spacingBefore: 0)
-		#expect(pagination.pageNumber == 1)
+    @Test("Flow is the default and nested directives consume no Grid cells")
+    func nestedFlow() {
+        let first = Box(height: 60)
+        let second = Box(height: 55)
+        let third = Box(height: 40)
+        let planner = pagination()
+        let (grid, measured) = execute(planner) {
+            Grid(vertFlow: .init(.fixed(100)), rows: .init(gap: 0)) {
+                PaginationGroup(sectionID: "spells") {
+                    PaginationGroup(sectionID: "wizard") { first }
+                    PaginationGroup(sectionID: "cleric") { second }
+                    PaginationGroup(sectionID: "sorcerer") { third }
+                }
+            }
+        }
+        #expect(grid.layout.resolvedDefinition(for: measured).cells.count == 3)
+        #expect(planner.pageCount == 2)
+        #expect(first.drawn.first?.minY == 0)
+        #expect(second.drawn.first?.minY == 0)
+        #expect(third.drawn.first?.minY == 55)
+        #expect(planner.positions["spells"]?.pageIndex == 0)
+        #expect(planner.positions["cleric"]?.pageIndex == 1)
+    }
 
-		pagination.measuredGroup(second, CGSize(width: 100, height: 20), behavior: .page, spacingBefore: 0)
-		#expect(pagination.pageNumber == 2)
-	}
+    @Test("Coincident parent and child .page requirements open one page")
+    func coincidentPage() {
+        let earlier = Box(height: 40)
+        let following = Box(height: 30)
+        let planner = pagination()
+        _ = execute(planner) {
+            Grid(vertFlow: .init(.fixed(100)), rows: .init(gap: 0)) {
+                PaginationGroup { earlier }
+                PaginationGroup(behavior: .page) {
+                    PaginationGroup(behavior: .page) { following }
+                }
+            }
+        }
+        #expect(planner.pageCount == 2)
+        #expect(following.drawn.first?.minY == 0)
+    }
 
-	@Test("Flow starts a new page only when the next unit does not fit")
-	func flow() {
-		let pagination = pagination()
-		let first = pagination.registerGroup(sectionID: "first")
-		let second = pagination.registerGroup(sectionID: "second")
-		let third = pagination.registerGroup(sectionID: "third")
+    @Test("Keep With Above on a parent applies to its first unit only")
+    func parentKeepWithFirstUnit() {
+        let previous = Box(height: 60)
+        let title = Box(height: 10)
+        let first = Box(height: 20)
+        let later = Box(height: 40)
+        let planner = pagination()
+        _ = execute(planner) {
+            Grid(vertFlow: .init(.fixed(100)), rows: .init(gap: 0)) {
+                PaginationGroup { previous }
+                PaginationGroup(behavior: .keepWith) {
+                    title
+                    PaginationGroup { first }
+                    PaginationGroup { later }
+                }
+            }
+        }
+        #expect(planner.pageCount == 2)
+        #expect(previous.drawn.first?.minY == 0)
+        #expect(title.drawn.first?.minY == 60)
+        #expect(first.drawn.first?.minY == 70)
+        #expect(later.drawn.first?.minY == 0)
+    }
 
-		pagination.measuredGroup(first, CGSize(width: 100, height: 40), behavior: .flow, spacingBefore: 0)
-		pagination.measuredGroup(second, CGSize(width: 100, height: 50), behavior: .flow, spacingBefore: 5)
-		#expect(pagination.pageNumber == 1)
+    @Test("Oversized indivisible content is never automatically split")
+    func oversizedUnit() {
+        let oversized = Box(height: 150)
+        let next = Box(height: 30)
+        let planner = pagination()
+        _ = execute(planner) {
+            Grid(vertFlow: .init(.fixed(100)), rows: .init(gap: 0)) {
+                PaginationGroup { oversized }
+                PaginationGroup { next }
+            }
+        }
+        #expect(planner.pageCount == 2)
+        #expect(oversized.drawn.count == 1)
+        #expect(oversized.drawn.first?.height == 150)
+        #expect(next.drawn.first?.minY == 0)
+    }
 
-		pagination.measuredGroup(third, CGSize(width: 100, height: 10), behavior: .flow, spacingBefore: 0)
-		#expect(pagination.pageNumber == 2)
-	}
-	@Test("Horizontal groups paginate by wrapped line height")
-	func horizontalLineHeight() {
-		let pagination = pagination()
-		let intrinsic = pagination.registerGroup(sectionID: "intrinsic")
-		let fill = pagination.registerGroup(sectionID: "fill")
-		let nextLine = pagination.registerGroup(sectionID: "nextLine")
+    @Test("Absent directives never authorize a break")
+    func ordinaryContentDoesNotSplit() {
+        let a = Box(height: 75)
+        let b = Box(height: 75)
+        let planner = pagination()
+        _ = execute(planner) {
+            Grid(vertFlow: .init(.fixed(100)), rows: .init(gap: 0)) {
+                a
+                b
+            }
+        }
+        #expect(planner.pageCount == 1)
+        #expect(a.drawn.count == 1 && b.drawn.count == 1)
+    }
 
-		pagination.measuredGroup(
-			intrinsic,
-			CGSize(width: 35, height: 60),
-			behavior: .flow,
-			spacingBefore: 0,
-			terminatesLine: false
-		)
-		pagination.measuredGroup(
-			fill,
-			CGSize(width: 65, height: 30),
-			behavior: .flow,
-			spacingBefore: 0,
-			terminatesLine: true
-		)
-		pagination.measuredGroup(
-			nextLine,
-			CGSize(width: 100, height: 35),
-			behavior: .flow,
-			spacingBefore: 0,
-			terminatesLine: true
-		)
+    @Test("Only selected source pages are rendered")
+    func selectedPages() {
+        let a = Box(height: 60)
+        let b = Box(height: 55)
+        let c = Box(height: 40)
+        var visited: [Int] = []
+        let planner = pagination(pages: 1..<2) { visited.append($0.currentPageIndex!) }
+        _ = execute(planner) {
+            Grid(vertFlow: .init(.fixed(100)), rows: .init(gap: 0)) {
+                PaginationGroup { a }
+                PaginationGroup { b }
+                PaginationGroup { c }
+            }
+        }
+        #expect(planner.pageCount == 2)
+        #expect(visited == [1])
+        #expect(a.drawn.isEmpty)
+        #expect(b.drawn.count == 1 && c.drawn.count == 1)
+    }
 
-		// The first two groups share one 60-point line, rather than
-		// consuming 60 + 30 points independently.
-		#expect(pagination.pageNumber == 1)
-	}
+    @Test("First and later pages respect the reserved content origin")
+    func contentInsets() {
+        let a = Box(height: 50)
+        let b = Box(height: 50)
+        let planner = Pagination(
+            layout: .init(pageSize: .custom(width: 100, height: 100), margins: .zero),
+            insets: .init(top: 20)
+        )
+        _ = execute(planner) {
+            Grid(vertFlow: .init(.fixed(100)), rows: .init(gap: 0)) {
+                PaginationGroup { a }
+                PaginationGroup { b }
+            }
+        }
+        #expect(planner.pageCount == 2)
+        #expect(a.drawn.first?.minY == 20)
+        #expect(b.drawn.first?.minY == 20)
+    }
 
+    @Test("Grid track drawing callbacks are paginated, not duplicated")
+    func paginatedTracks() {
+        let a = Box(height: 60)
+        let b = Box(height: 55)
+        var columns: [CGRect] = []
+        let planner = pagination { current in
+            for (rect, draw) in current.tracksForCurrentPage { draw(rect) }
+        }
+        _ = execute(planner) {
+            Grid(
+                vertFlow: .init(.fixed(100)),
+                rows: .init(gap: 0),
+                cells: {
+                    PaginationGroup { a }
+                    PaginationGroup { b }
+                },
+                colRender: { columns.append($0.rect) }
+            )
+        }
+        #expect(planner.pageCount == 2)
+        #expect(columns.count == 2)
+    }
 
-	@Test("Pagination order follows group registration, not measurement order")
-	func registrationOrderSurvivesOutOfOrderMeasurement() {
-		let pagination = pagination()
-		let intrinsic = pagination.registerGroup(sectionID: "money")
-		let fill = pagination.registerGroup(sectionID: "valuables")
-		let nextLine = pagination.registerGroup(sectionID: "next")
+    @Test("An empty group does not introduce a new page or cell")
+    func emptyGroup() {
+        let a = Box(height: 60)
+        let b = Box(height: 30)
+        let planner = pagination()
+        let (grid, measured) = execute(planner) {
+            Grid(vertFlow: .init(.fixed(100)), rows: .init(gap: 0)) {
+                PaginationGroup { a }
+                PaginationGroup(behavior: .page) { }
+                PaginationGroup { b }
+            }
+        }
+        #expect(grid.layout.resolvedDefinition(for: measured).cells.count == 2)
+        #expect(planner.pageCount == 1)
+    }
 
-		// Grid may measure fill and intrinsic tracks in an order different from
-		// their declarative/render order. Pagination must not use measurement
-		// order to reconstruct horizontal lines.
-		pagination.measuredGroup(
-			fill,
-			CGSize(width: 65, height: 30),
-			behavior: .flow,
-			spacingBefore: 0,
-			terminatesLine: true
-		)
-		pagination.measuredGroup(
-			intrinsic,
-			CGSize(width: 35, height: 60),
-			behavior: .flow,
-			spacingBefore: 0,
-			terminatesLine: false
-		)
-		pagination.measuredGroup(
-			nextLine,
-			CGSize(width: 100, height: 35),
-			behavior: .flow,
-			spacingBefore: 0,
-			terminatesLine: true
-		)
+    @Test("A vertical Panel forwards nested boundaries and page decorations")
+    func panelForwarding() {
+        let a = Box(height: 70)
+        let b = Box(height: 60)
+        var decoratedPages: [Int] = []
+        let planner = pagination { current in
+            if !current.decorationsForCurrentPage.isEmpty {
+                decoratedPages.append(current.currentPageIndex!)
+            }
+        }
+        RenderableEnvironment.withContext(pagination: planner) {
+            let panel = Panel(background: JCSRect()) {
+                Grid(vertFlow: .init(.fixed(100)), rows: .init(gap: 0)) {
+                    PaginationGroup { a }
+                    PaginationGroup { b }
+                }
+            }
+            let measured = panel.measure(bounds: CGSize(width: 100, height: 1000))
+            let frame = CGRect(origin: .zero, size: measured)
+            planner.prepare(panel, in: frame, measured: measured)
+            panel.render(in: frame, measured: measured, align: .leftTop)
+        }
+        #expect(planner.pageCount == 2)
+        #expect(decoratedPages == [0, 1])
+        #expect(a.drawn.first?.minY == 0)
+        #expect(b.drawn.first?.minY == 0)
+    }
 
-		// Money + Valuables are one 60-point line; the next line is 35 points.
-		// If measurement order were used, they would incorrectly consume 125.
-		#expect(pagination.pageNumber == 1)
-	}
+    @Test("Directives on different cells in the same physical row cannot split that row")
+    func horizontalRowIntegrity() {
+        let a = Box(height: 60, width: 50)
+        let b = Box(height: 60, width: 50)
+        let planner = pagination()
+        _ = execute(planner) {
+            Grid(
+                cols: .init([.init(.fixed(50)), .init(.fixed(50))]),
+                rows: .init(gap: 0)
+            ) {
+                PaginationGroup { a }
+                PaginationGroup { b }
+            }
+        }
+        #expect(planner.pageCount == 1)
+        #expect(a.drawn.count == 1 && b.drawn.count == 1)
+    }
 
-	@Test("Rendering applies content inset without reapplying page margin")
-	func renderingPreservesX() {
-		let pagination = Pagination(
-			layout: .init(
-				pageSize: .custom(width: 120, height: 100),
-				margins: .init(left: 12, right: 8, top: 0, bottom: 0)
-			),
-			insets: .init(left: 7, right: 0, top: 0, bottom: 0)
-		)
-		#expect(pagination.printableRect.origin.x == 12)
-		#expect(pagination.contentRect.origin.x == 19)
-
-		let first = pagination.registerGroup(sectionID: "first")
-		let second = pagination.registerGroup(sectionID: "second")
-
-		pagination.measuredGroup(
-			first,
-			CGSize(width: 35, height: 20),
-			behavior: .flow,
-			spacingBefore: 0,
-			terminatesLine: false
-		)
-		pagination.measuredGroup(
-			second,
-			CGSize(width: 65, height: 20),
-			behavior: .flow,
-			spacingBefore: 0,
-			terminatesLine: true
-		)
-
-		// Grid origins are already based at printableRect.origin.x.
-		// Pagination adds only the content inset (19 - 12 = 7).
-		let firstOrigin = pagination.renderingGroup(first, frame: CGRect(origin: CGPoint(x: 22, y: 0), size: CGSize(width: 35, height: 20)))
-		let secondOrigin = pagination.renderingGroup(second, frame: CGRect(origin: CGPoint(x: 57, y: 0), size: CGSize(width: 65, height: 20)))
-		#expect(firstOrigin.x == 29)
-		#expect(secondOrigin.x == 64)
-		#expect(secondOrigin.x - firstOrigin.x == 35)
-		#expect(pagination.positions["first"]?.pageIndex == 0)
-		#expect(pagination.positions["first"]?.frame.origin == firstOrigin)
-		#expect(pagination.positions["first"]?.pageRect == pagination.pageRect)
-	}
-
+    @Test("Planning the same measured layout again produces the same assignments")
+    func repeatedPlanning() {
+        let a = Box(height: 60)
+        let b = Box(height: 55)
+        let planner = pagination()
+        RenderableEnvironment.withContext(pagination: planner) {
+            let grid = Grid(vertFlow: .init(.fixed(100)), rows: .init(gap: 0)) {
+                PaginationGroup { a }
+                PaginationGroup { b }
+            }
+            for _ in 0..<2 {
+                let measured = grid.measure(bounds: CGSize(width: 100, height: 1000))
+                let frame = CGRect(origin: .zero, size: measured)
+                planner.prepare(grid, in: frame, measured: measured)
+                #expect(planner.pageCount == 2)
+            }
+        }
+    }
 }
 
-extension PaginationTests {
-	@Test("Page range measures earlier pages but emits only selected pages")
-	func pageRangeSkipsEarlierRendering() {
-		var emittedPages = 0
-		let pagination = Pagination(
-			layout: .init(
-				pageSize: .custom(width: 100, height: 100),
-				margins: .zero
-			),
-			pages: 1..<3
-		) { _ in
-			emittedPages += 1
-		}
-		let first = pagination.registerGroup(sectionID: "first")
-		let second = pagination.registerGroup(sectionID: "second")
-		let third = pagination.registerGroup(sectionID: "third")
+#if canImport(PDFKit) && !os(watchOS)
+import PDFKit
 
-		pagination.measuredGroup(first, CGSize(width: 100, height: 100), behavior: .page, spacingBefore: 0)
-		pagination.measuredGroup(second, CGSize(width: 100, height: 100), behavior: .page, spacingBefore: 0)
-		pagination.measuredGroup(third, CGSize(width: 100, height: 100), behavior: .page, spacingBefore: 0)
-		#expect(pagination.pageNumber == 3)
+@Suite("Directive pagination PDF integration")
+struct DirectivePaginationPDFTests {
+    private struct PDFBox: Renderable {
+        let height: CGFloat
+        func measure(bounds: CGSize) -> CGSize { CGSize(width: 100, height: height) }
+        func render(in allocated: CGRect, measured: CGSize, align: Alignment) {}
+    }
 
-		_ = pagination.renderingGroup(first, frame: CGRect(x: 0, y: 0, width: 100, height: 100))
-		#expect(!pagination.isRenderingPage)
-		#expect(pagination.positions["first"] == nil)
+    @Test("The generated PDF has the planned pages and section positions")
+    func actualPDF() {
+        let grid = Grid(vertFlow: .init(.fixed(100)), rows: .init(gap: 0)) {
+            PaginationGroup(sectionID: "first") { PDFBox(height: 60) }
+            PaginationGroup(sectionID: "second") { PDFBox(height: 55) }
+            PaginationGroup(sectionID: "third") { PDFBox(height: 40) }
+        }
+        let generator = PDFGenerator(pageLayout: .init(
+            pageSize: .custom(width: 100, height: 100), margins: .zero
+        ))
+        let result = generator.form(grid)
+        #expect(result.document?.pageCount == 2)
+        #expect(result.positions["first"]?.pageIndex == 0)
+        #expect(result.positions["second"]?.pageIndex == 1)
+        #expect(result.positions["third"]?.pageIndex == 1)
+    }
 
-		_ = pagination.renderingGroup(second, frame: CGRect(x: 0, y: 100, width: 100, height: 100))
-		#expect(pagination.isRenderingPage)
-		#expect(pagination.positions["second"]?.pageIndex == 0)
-
-		_ = pagination.renderingGroup(third, frame: CGRect(x: 0, y: 200, width: 100, height: 100))
-		#expect(pagination.isRenderingPage)
-		#expect(pagination.positions["third"]?.pageIndex == 1)
-		#expect(emittedPages == 2)
-	}
+    @Test("A selected page range exports only the requested physical page")
+    func selectedPDFPages() {
+        let grid = Grid(vertFlow: .init(.fixed(100)), rows: .init(gap: 0)) {
+            PaginationGroup { PDFBox(height: 60) }
+            PaginationGroup { PDFBox(height: 55) }
+        }
+        let generator = PDFGenerator(pageLayout: .init(
+            pageSize: .custom(width: 100, height: 100), margins: .zero
+        ))
+        let result = generator.form(grid, pages: 1..<2)
+        #expect(result.document?.pageCount == 1)
+    }
 }
+#endif

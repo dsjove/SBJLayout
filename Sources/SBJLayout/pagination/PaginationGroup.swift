@@ -1,74 +1,37 @@
 import Foundation
-import CoreGraphics
 
-public enum PaginationBehavior: String, Codable, CaseIterable, Sendable {
-	case page
-	case keepWith
-	case flow
-	
-	public var displayName: String {
-		switch self {
-		case .page: "Page Break"
-		case .keepWith: "Keep With Above"
-		case .flow: "Flow"
-		}
-	}
+/// A declarative pagination scope, not a layout element.
+///
+/// A group allows a page break before its first unit. `.page` requires one,
+/// `.keepWith` joins its first unit to preceding content (Keep With Above),
+/// and `.flow` (the default) permits a break when necessary. Nested scopes
+/// contribute additional legal boundaries without remeasuring their parent.
+public struct PaginationGroup {
+    let id: UUID
+    public let sectionID: String?
+    public let behavior: PaginationBehavior
+    public let content: Renderables
+
+    public init(
+        sectionID: String? = nil,
+        behavior: PaginationBehavior = .flow,
+        @RenderableBuilder content: () -> Renderables
+    ) {
+        self.id = UUID()
+        self.sectionID = sectionID
+        self.behavior = behavior
+        self.content = content()
+    }
 }
 
-public struct PaginationGroup: Renderable  {
-	let paginationKey: PaginationGroupKey
-	let behavior: PaginationBehavior
-	let groupGap: CGFloat
-	let terminatesLine: Bool
-	let grid: Grid
+public enum PaginationBehavior: String, Codable, CaseIterable, Sendable {
+    case page, keepWith, flow
 
-	public init(
-		sectionID: String,
-		behavior: PaginationBehavior = .flow,
-		groupGap: CGFloat,
-		dimension: TrackSize = .fill(),
-		@RenderableBuilder
-		content: () -> Renderables,
-	) {
-		self.paginationKey = Self.pagination.registerGroup(sectionID: sectionID)
-		self.behavior = behavior
-		self.groupGap = groupGap
-		self.terminatesLine = {
-			if case .fill = dimension { return true }
-			return false
-		}()
-		self.grid = Grid(
-			vertFlow: .init(dimension),
-			rows: .init(gap: groupGap)
-		) {
-			content()
-		}
-	}
-
-	public func measure(bounds: CGSize) -> CGSize {
-		let size = self.grid.measure(bounds: bounds)
-		Self.pagination.measuredGroup(
-			paginationKey,
-			size,
-			behavior: behavior,
-			spacingBefore: groupGap,
-			terminatesLine: terminatesLine
-		)
-		return size
-	}
-
-	public func minimumMeasure(bounds: CGSize) -> CGSize {
-		// A minimum-content probe must not publish pagination geometry. Only the
-		// normal measurement pass participates in pagination state.
-		grid.minimumMeasure(bounds: bounds)
-	}
-
-	public func render(in allocated: CGRect, measured: CGSize, align: SBJLayout.Alignment) {
-		let pageOrigin = Self.pagination.renderingGroup(
-			paginationKey,
-			frame: allocated
-		)
-		guard Self.pagination.isRenderingPage else { return }
-		self.grid.render(in: allocated.reorigin(at: pageOrigin), measured: measured, align: align)
-	}
+    public var displayName: String {
+        switch self {
+        case .page: "Page Break"
+        case .keepWith: "Keep With Above"
+        case .flow: "Flow"
+        }
+    }
 }
