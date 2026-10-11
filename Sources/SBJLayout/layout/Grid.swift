@@ -1,11 +1,5 @@
 import CoreGraphics
 import Foundation
-// TODO: Feature - Automatic pagination at complete wrapped-row boundaries.
-// Today, PaginationGroup directives in the builder are the only source of break
-// permission. When wrapping creates a new *physical* row, Grid could emit an
-// implicit .flow boundary before that whole row. Use the same logical event
-// representation as explicit PaginationGroups; do not invent coordinate hints,
-// split a row's cells, or silently change content grouping.
 // TODO: Feature - Pivot Table
 // TODO: Feature - Wrapping header duplication?
 // TODO: Feature - identifiable reducers and groupings for uniform Tracks
@@ -46,6 +40,7 @@ public extension Grid {
 //MARK: Convenience inits
 	init(
 		horzFlow col: Column, wrapped at: Int? = nil,
+        paginateOnWrap: PaginationBehavior = .keepWith,
 		rows: Rows = .init(align: .left),
 		@RenderableBuilder cells: ()->Renderables,
 		colRender: ((ColumnIteration)->())? = nil,
@@ -57,11 +52,14 @@ public extension Grid {
 			cols: .init(Array(repeating: col, count: at ?? content.content.count)),
 			rows: rows,
 			render: .init(column: colRender, row: rowRender, cell: cellRender),
-            content: content)
+            paginateOnWrap: paginateOnWrap,
+            content: content,
+            isFlowWrap: true)
 	}
 
 	init(
 		vertFlow col: Column,
+        paginateOnWrap: PaginationBehavior = .keepWith,
 		rows: Rows = .init(align: .centerY),
 		@RenderableBuilder cells: ()->Renderables,
 		colRender: ((ColumnIteration)->())? = nil,
@@ -73,13 +71,15 @@ public extension Grid {
 			cols: .init(col: col),
 			rows: rows,
 			render: .init(column: colRender, row: rowRender, cell: cellRender),
-			content: content)
+            paginateOnWrap: paginateOnWrap,
+            content: content)
 	}
 
 	init(
 		table cols: [Column], columnMap: ((Int)->Int)? = nil,
 		header: Track? = nil,
 		leader: Track? = nil,
+        paginateOnWrap: PaginationBehavior = .keepWith,
 		rows: TrackFactory = .init(),
 		@RenderableBuilder cells: ()->Renderables,
 		colRender: ((ColumnIteration)->())? = nil,
@@ -131,10 +131,11 @@ public extension Grid {
 			cols: .init(tableColumns.enumerated().filter { $0.element.role == .normal }.map { $0.element }, map: nil),
 			rows: tableRows,
 			render: .init(column: colRender, row: rowRender, cell: cellRender),
-			accessories: tableColumns.indices.filter { tableColumns[$0].role.isAccessory }.map { index in
-				.init(inputStride: tableColumns.count, slot: index, track: tableColumns[index], physicalSlots: tableColumns.indices.filter { tableColumns[$0].role == .normal })
-			},
-			content: content)
+			paginateOnWrap: paginateOnWrap,
+            accessories: tableColumns.indices.filter { tableColumns[$0].role.isAccessory }.map { index in
+                .init(inputStride: tableColumns.count, slot: index, track: tableColumns[index], physicalSlots: tableColumns.indices.filter { tableColumns[$0].role == .normal })
+            },
+            content: content)
 	}
 }
 
@@ -187,6 +188,7 @@ public struct Grid: Renderable, PaginationTraversable {
 		render: Render = .init(),
 		arrangement: TrackArrangement = .gaps,
 		wrapping: TrackAxis? = nil,
+        paginateOnWrap: PaginationBehavior = .keepWith,
 		accessories: [Definition.RowAccessory] = [],
 		@RenderableBuilder cells: ()->Renderables
 	) {
@@ -196,53 +198,61 @@ public struct Grid: Renderable, PaginationTraversable {
 			render: render,
 			arrangement: arrangement,
 			wrapping: wrapping,
+            paginateOnWrap: paginateOnWrap,
 			accessories: accessories,
-			content: cells())
+            content: cells())
 	}
 
     private init(
-		cols: Columns,
-		rows: Rows,
-		render: Render,
-		arrangement: TrackArrangement = .gaps,
-		wrapping: TrackAxis? = nil,
-		accessories: [Definition.RowAccessory] = [],
-		content: Renderables
-	) {
-		self.init(
-			cols: cols, rows: rows, render: render,
-			arrangement: arrangement, wrapping: wrapping,
-			accessories: accessories, flattened: FlattenedPaginationContent(content))
-	}
+        cols: Columns,
+        rows: Rows,
+        render: Render,
+        arrangement: TrackArrangement = .gaps,
+        wrapping: TrackAxis? = nil,
+        paginateOnWrap: PaginationBehavior = .keepWith,
+        accessories: [Definition.RowAccessory] = [],
+        content: Renderables,
+        isFlowWrap: Bool = false
+    ) {
+        self.init(cols: cols, rows: rows, render: render,
+                  arrangement: arrangement, wrapping: wrapping, paginateOnWrap: paginateOnWrap,
+                  accessories: accessories, flattened: FlattenedPaginationContent(content),
+                  isFlowWrap: isFlowWrap)
+    }
 
-	public init(
-		cols: Columns,
-		rows: Rows = .init(),
-		render: Render = .init(),
-		arrangement: TrackArrangement = .gaps,
-		wrapping: TrackAxis? = nil,
-		accessories: [Definition.RowAccessory] = [],
-		cells: Cells
-	) {
-		self.init(cols: cols, rows: rows, render: render,
-			arrangement: arrangement, wrapping: wrapping,
-			accessories: accessories, flattened: FlattenedPaginationContent(
-			Renderables(cells.map { .content($0) })))
-	}
+    public init(
+        cols: Columns,
+        rows: Rows = .init(),
+        render: Render = .init(),
+        arrangement: TrackArrangement = .gaps,
+        wrapping: TrackAxis? = nil,
+        paginateOnWrap: PaginationBehavior = .keepWith,
+        accessories: [Definition.RowAccessory] = [],
+        cells: Cells
+    ) {
+        self.init(cols: cols, rows: rows, render: render,
+                  arrangement: arrangement, wrapping: wrapping, paginateOnWrap: paginateOnWrap,
+                  accessories: accessories, flattened: FlattenedPaginationContent(
+                    Renderables(cells.map { .content($0) })))
+    }
 
-	private init(
-		cols: Columns,
-		rows: Rows,
-		render: Render,
-		arrangement: TrackArrangement,
-		wrapping: TrackAxis?,
-		accessories: [Definition.RowAccessory],
-		flattened: FlattenedPaginationContent
-	) {
+    private init(
+        cols: Columns,
+        rows: Rows,
+        render: Render,
+        arrangement: TrackArrangement,
+        wrapping: TrackAxis?,
+        paginateOnWrap: PaginationBehavior,
+        accessories: [Definition.RowAccessory],
+        flattened: FlattenedPaginationContent,
+        isFlowWrap: Bool = false
+    ) {
 		self.render = render
-		self.paginationID = UUID()
-		self.paginationContent = flattened
-		let trackedCells = flattened.cells.map(TrackedElement.init)
+        self.paginationID = UUID()
+        self.paginateOnWrap = paginateOnWrap
+        self.supportsWrapPagination = isFlowWrap || wrapping != nil
+        self.paginationContent = flattened
+        let trackedCells = flattened.cells.map(TrackedElement.init)
 		self.layout = .init(
 			columns: cols,
 			rows: rows,
@@ -261,26 +271,29 @@ public struct Grid: Renderable, PaginationTraversable {
 	}
 
 //MARK: API
-	public let layout: Layout
-	public let render: Render
-	let paginationID: UUID
-	let paginationContent: FlattenedPaginationContent
+    public let layout: Layout
+    public let render: Render
+    let paginationID: UUID
+    /// Controls pagination at complete wrapped rows; `.keepWith` preserves the original behavior.
+    public let paginateOnWrap: PaginationBehavior
+    let supportsWrapPagination: Bool
+    let paginationContent: FlattenedPaginationContent
 
-	var hasPaginationGroups: Bool {
-		paginationContent.hasGroups || paginationContent.cells.contains {
-			($0 as? any PaginationTraversable)?.hasPaginationGroups == true
-		}
-	}
+    var hasPaginationGroups: Bool {
+        paginationContent.hasGroups || (paginateOnWrap != .keepWith && supportsWrapPagination) || paginationContent.cells.contains {
+            ($0 as? any PaginationTraversable)?.hasPaginationGroups == true
+        }
+    }
 
-	func collectPaginationEvents(
-		in allocated: CGRect, measured: CGSize, align: Alignment,
-		into events: inout [PaginationEvent]
-	) {
-		RenderableEnvironment.context.pagination.collectEvents(
-			from: self, in: allocated, measured: measured, align: align, into: &events)
-	}
+    func collectPaginationEvents(
+        in allocated: CGRect, measured: CGSize, align: Alignment,
+        into events: inout [PaginationEvent]
+    ) {
+        RenderableEnvironment.context.pagination.collectEvents(
+            from: self, in: allocated, measured: measured, align: align, into: &events)
+    }
 
-	public func measure(bounds: CGSize) -> CGSize {
+    public func measure(bounds: CGSize) -> CGSize {
 		let definition = layout.measure(bounds: bounds)
 		return definition.size
 	}
@@ -295,7 +308,8 @@ public struct Grid: Renderable, PaginationTraversable {
 if debugDrawAllocated {
 	JCSRect(stroke: .blue.withAlphaComponent(0.5) , lineWidth: 1.5).draw(in: positioned)
 }
-		RenderableEnvironment.context.pagination.renderGrid(
-			self, definition: definition, positioned: positioned)
+        RenderableEnvironment.context.pagination.renderGrid(
+            self, definition: definition, positioned: positioned)
+
 	}
 }

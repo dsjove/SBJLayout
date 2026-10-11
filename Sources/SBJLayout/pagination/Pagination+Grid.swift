@@ -19,7 +19,25 @@ extension Pagination {
         // Builder order, not visual column iteration, determines directive order.
         cells.sort { $0.i < $1.i }
         var nextBoundary = 0
+        let wrapUnits = cells.compactMap {
+            definition.paginationWrapUnit(column: $0.c, row: $0.r)
+        }
+        // In column-major or multi-band layouts, input order can differ from
+        // physical row order. Until the planner can reorder complete units,
+        // leave those layouts indivisible instead of adding false boundaries.
+        let hasOrderedWrapUnits = zip(wrapUnits, wrapUnits.dropFirst()).allSatisfy { $0 <= $1 }
+        var previousWrapUnit: Int?
         for cell in cells {
+            // Only a change in the resolved logical row/band can authorize a
+            // wrap break. Once input order diverges from physical row order,
+            // do not guess at boundaries from coordinates.
+            if grid.supportsWrapPagination && grid.paginateOnWrap != .keepWith && hasOrderedWrapUnits,
+               let unit = definition.paginationWrapUnit(column: cell.c, row: cell.r) {
+                if let previous = previousWrapUnit, unit > previous {
+                    result.append(.wrap(grid.paginateOnWrap))
+                }
+                previousWrapUnit = unit
+            }
             while nextBoundary <= cell.i && nextBoundary < grid.paginationContent.boundaries.count {
                 result.append(contentsOf: grid.paginationContent.boundaries[nextBoundary])
                 nextBoundary += 1

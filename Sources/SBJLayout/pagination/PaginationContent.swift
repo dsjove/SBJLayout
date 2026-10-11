@@ -12,6 +12,8 @@ enum PaginationEvent {
     case begin(PaginationGroup)
     case end(UUID)
     case item(PaginationItemID, CGRect)
+    /// A permitted or required boundary between complete Grid rows.
+    case wrap(PaginationBehavior)
     case beginDecoration(UUID, JCSRect, CGRect)
     case endDecoration(UUID)
     case trackDecoration(UUID, CGRect, [PaginationItemID], (CGRect) -> Void)

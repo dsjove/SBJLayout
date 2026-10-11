@@ -267,6 +267,22 @@ public struct GridDefinition<Cell: TrackElement> {
 		}
 	}
 
+    // A pagination boundary may occur only between complete resolved horizontal
+    // rows. Use the layout's own row/band assignment, not cell geometry.
+    // Vertical wrapping produces side-by-side bands, which are not a page-ordered
+    // sequence and cannot safely be paginated as rows.
+    func paginationWrapUnit(column: Int, row: Int) -> Int? {
+        guard row >= 0, row < rowCount, column >= 0, column < columnCount else { return nil }
+        switch wrapping {
+        case .none:
+            return row
+        case .horizontal:
+            return band(forWrappedTrack: column) * rowCount + row
+        case .vertical:
+            return nil
+        }
+    }
+
 	private func band(forWrappedTrack index: Int) -> Int {
 		wrappedBands.indices.contains(index) ? wrappedBands[index] : 0
 	}

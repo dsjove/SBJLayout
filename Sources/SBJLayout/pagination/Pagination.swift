@@ -152,6 +152,7 @@ public final class Pagination {
         var allDecorations: [DecorationScope] = []
         var originalFrames: [PaginationItemID: CGRect] = [:]
         var trackDecorations: [(CGRect, [PaginationItemID], (CGRect) -> Void)] = []
+        var pendingWrap: PaginationBehavior?
 
         for event in events {
             switch event {
@@ -167,6 +168,11 @@ public final class Pagination {
                 precondition(activeDecorations.last?.id == id,
                              "Malformed pagination decoration nesting")
                 activeDecorations.removeLast()
+
+            case .wrap(let behavior):
+                // A Grid can expose a boundary only inside an explicit pagination scope.
+                guard !scopes.isEmpty else { continue }
+                pendingWrap = behavior
 
             case .begin(let group):
                 var effective = group.behavior
@@ -205,6 +211,16 @@ public final class Pagination {
                     }
                 }
 
+                if let wrap = pendingWrap {
+                    if entry != .page {
+                        switch wrap {
+                        case .page: entry = .page
+                        case .flow: if entry == nil { entry = .flow }
+                        case .keepWith: break
+                        }
+                    }
+                    pendingWrap = nil
+                }
                 let item = Item(id: id, frame: frame, sectionIDs: sectionIDs)
                 if let entry {
                     segments.append(Segment(behavior: entry, items: [item]))

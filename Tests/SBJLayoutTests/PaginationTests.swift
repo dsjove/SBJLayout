@@ -299,6 +299,81 @@ struct PaginationTests {
             }
         }
     }
+
+    @Test("Grid wrap pagination defaults to no implicit breaks")
+    func wrapDefaultKeepWith() {
+        let cards = (0..<6).map { _ in Box(height: 60, width: 30) }
+        let planner = pagination()
+        _ = execute(planner) {
+            Grid(vertFlow: .init(.fixed(100)), rows: .init(gap: 0)) {
+                PaginationGroup {
+                    Grid(horzFlow: .init(.fixed(30)), wrapped: 3, rows: .init(gap: 0)) {
+                        cards.renderables { $0 }
+                    }
+                }
+            }
+        }
+        #expect(planner.pageCount == 1)
+    }
+
+    @Test("Flow on wrapped Grid moves an entire second row")
+    func flowAtWrappedRows() {
+        let cards = (0..<6).map { _ in Box(height: 60, width: 30) }
+        let planner = pagination()
+        _ = execute(planner) {
+            Grid(vertFlow: .init(.fixed(100)), rows: .init(gap: 0)) {
+                PaginationGroup {
+                    Grid(horzFlow: .init(.fixed(30)), wrapped: 3,
+                         paginateOnWrap: .flow, rows: .init(gap: 0)) {
+                        cards.renderables { $0 }
+                    }
+                }
+            }
+        }
+        #expect(planner.pageCount == 2)
+        #expect(cards.prefix(3).allSatisfy { $0.drawn.first?.minY == 0 })
+        #expect(cards.suffix(3).allSatisfy { $0.drawn.first?.minY == 0 })
+    }
+
+    @Test("Required page on wrapped Grid forces page transition even when rows fit")
+    func pageAtWrappedRows() {
+        let cards = (0..<6).map { _ in Box(height: 20, width: 30) }
+        let planner = pagination()
+        _ = execute(planner) {
+            Grid(vertFlow: .init(.fixed(100)), rows: .init(gap: 0)) {
+                PaginationGroup {
+                    Grid(horzFlow: .init(.fixed(30)), wrapped: 3,
+                         paginateOnWrap: .page, rows: .init(gap: 0)) {
+                        cards.renderables { $0 }
+                    }
+                }
+            }
+        }
+        #expect(planner.pageCount == 2)
+    }
+
+    @Test("Wrap boundaries follow logical rows with unequal cell heights")
+    func wrapDifferentCellHeights() {
+        let cards = [
+            Box(height: 60, width: 30), Box(height: 20, width: 30), Box(height: 40, width: 30),
+            Box(height: 25, width: 30), Box(height: 35, width: 30), Box(height: 30, width: 30)
+        ]
+        let planner = pagination()
+        _ = execute(planner) {
+            Grid(vertFlow: .init(.fixed(100)), rows: .init(gap: 0)) {
+                PaginationGroup {
+                    Grid(horzFlow: .init(.fixed(30)), wrapped: 3,
+                         paginateOnWrap: .flow, rows: .init(gap: 0)) {
+                        cards.renderables { $0 }
+                    }
+                }
+            }
+        }
+        #expect(planner.pageCount == 1)
+        #expect(cards.prefix(3).allSatisfy { $0.drawn.first?.minY == 0 })
+        #expect(cards.suffix(3).allSatisfy { $0.drawn.first?.minY == 60 })
+    }
+
 }
 
 #if canImport(PDFKit) && !os(watchOS)
@@ -341,5 +416,6 @@ struct DirectivePaginationPDFTests {
         let result = generator.form(grid, pages: 1..<2)
         #expect(result.document?.pageCount == 1)
     }
+
 }
 #endif
