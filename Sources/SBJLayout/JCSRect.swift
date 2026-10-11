@@ -1,5 +1,6 @@
 import CoreGraphics
 import UIKit
+import SBJFoundation
 
 //TODO: API - this is more of a drawing trait than an entity and not a rectangle
 public struct JCSRect: Chrome {
@@ -18,6 +19,11 @@ public struct JCSRect: Chrome {
 		self.stroke = stroke
 		self.lineWidth = lineWidth
 		self.radius = radius
+	}
+
+	/// Resolves serializable theme colors at the drawing boundary.
+	public init(fill: CodableColor, stroke: CodableColor, lineWidth: CGFloat = 1, radius: CGFloat = 0) {
+		self.init(fill: fill.uiColor, stroke: stroke.uiColor, lineWidth: lineWidth, radius: radius)
 	}
 
 	public func render(in allocated: CGRect, measured: CGSize, align: Alignment) {
@@ -60,6 +66,10 @@ public struct JCSLine {
 	public init(stroke: UIColor, lineWidth: CGFloat) {
 		self.stroke = stroke
 		self.lineWidth = lineWidth
+	}
+
+	public init(stroke: CodableColor, lineWidth: CGFloat) {
+		self.init(stroke: stroke.uiColor, lineWidth: lineWidth)
 	}
 
 	@discardableResult
