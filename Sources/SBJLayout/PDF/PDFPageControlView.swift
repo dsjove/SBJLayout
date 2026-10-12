@@ -31,13 +31,13 @@ public struct PDFPageControlView<Controller: PDFPageNavigating & PDFTextSearchin
         Button(action: controller.goToFirstPage) {
             Image(.system("backward.end"))
         }
-        .accessibilityLabel("First Page")
+        .accessibilityLabel("Go to first page")
         .disabled(!pageRange.canGoBackward)
 
         Button(action: controller.goToPreviousPage) {
             Image(.system("chevron.left"))
         }
-        .accessibilityLabel("Previous Page")
+        .accessibilityLabel("Go to previous page")
         .disabled(!pageRange.canGoBackward)
 
         Text(pageRange.description)
@@ -48,13 +48,13 @@ public struct PDFPageControlView<Controller: PDFPageNavigating & PDFTextSearchin
         Button(action: controller.goToNextPage) {
             Image(.system("chevron.right"))
         }
-        .accessibilityLabel("Next Page")
+        .accessibilityLabel("Go to next page")
         .disabled(!pageRange.canGoForward)
 
         Button(action: controller.goToLastPage) {
             Image(.system("forward.end"))
         }
-        .accessibilityLabel("Last Page")
+        .accessibilityLabel("Go to last page")
         .disabled(!pageRange.canGoForward)
 
         Button {
@@ -86,19 +86,19 @@ public struct PDFPageControlView<Controller: PDFPageNavigating & PDFTextSearchin
         Button(action: controller.goToPreviousSearchMatch) {
             Image(.system("chevron.up"))
         }
-        .accessibilityLabel("Previous Search Result")
+        .accessibilityLabel("Go to previous search result")
         .disabled(controller.searchMatchCount == 0)
 
         Button(action: controller.goToNextSearchMatch) {
             Image(.system("chevron.down"))
         }
-        .accessibilityLabel("Next Search Result")
+        .accessibilityLabel("Go to next search result")
         .disabled(controller.searchMatchCount == 0)
 
         Button(action: closeSearch) {
             Image(.system("xmark"))
         }
-        .accessibilityLabel("Close Search")
+        .accessibilityLabel("Close search")
     }
 
     private var searchMatchDescription: String {
@@ -110,7 +110,7 @@ public struct PDFPageControlView<Controller: PDFPageNavigating & PDFTextSearchin
     }
 
     private var searchMatchAccessibilityLabel: String {
-        guard !controller.searchQuery.isEmpty else { return "No search" }
+        guard !controller.searchQuery.isEmpty else { return "Enter a search term" }
         guard let current = controller.currentSearchMatchNumber,
               controller.searchMatchCount > 0
         else { return "No search results" }

@@ -15,10 +15,10 @@ import Foundation
 'Custom Columns' features not in scope...
 
 Dynamic live large sets of data ('Grid' is not a UI solution)
-1) Cell needs to become hashable so we can effectly detect content changes for remeasuring
+1) Cell needs to become hashable so we can effectively detect content changes for remeasuring
 2) Cell needs to become identifiable so we can track movement
-3) Cells on init should become a factory like cols and rows
-4) Then we need to detect if the change requires invalidating measurements or just redraw
+3) Cells should be created by a factory during initialization, like columns and rows
+4) Then detect whether a change requires invalidating measurements or only redrawing.
 5) The changes need to be additive and throttled to a f/s
 6) Column-Mapping/Row-Sort view-model and size caching
 
@@ -32,12 +32,12 @@ Split tables (only useful for UI content scrolling)
 2) or cross grid sizing/pos sync
 */
 
-//Some cells will draw this debug rect not reorigined on new page
+// Some cells draw this debug rectangle without resetting its origin on a new page.
 nonisolated(unsafe) internal var debugDrawCells = false
 nonisolated(unsafe) internal var debugDrawAllocated = false
 
 //TODO: Pagination - paginateOnWrap, isFlowWrap, wrapping, FlattenedPaginationContent
-// feels like can be simplied/combined
+// TODO: Consider simplifying or combining these pagination parameters.
 
 public extension Grid {
 //MARK: Convenience inits
