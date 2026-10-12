@@ -1,5 +1,12 @@
 import CoreGraphics
 
+/*
+TODO: API - Create a simple rect transformer (maybe PhotoEditGeometry)
+Aspect
+Insets
+Alignment
+ */
+
 public struct AspectRatio: Sendable, Codable, Hashable, CustomStringConvertible {
 	public let width: CGFloat
 	public let height: CGFloat

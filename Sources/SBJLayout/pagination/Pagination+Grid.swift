@@ -1,6 +1,48 @@
 import Foundation
 import CoreGraphics
 
+extension Panel: PaginationTraversable {
+	var hasPaginationGroups: Bool {
+		(content as? any PaginationTraversable)?.hasPaginationGroups == true
+	}
+
+	func collectPaginationEvents(
+		in allocated: CGRect, measured: CGSize, align: Alignment,
+		into events: inout [PaginationEvent]
+	) {
+		guard let traversable = content as? any PaginationTraversable,
+			  traversable.hasPaginationGroups else { return }
+		if let background {
+			events.append(.beginDecoration(decorationID, background, allocated))
+		}
+		traversable.collectPaginationEvents(
+			in: insets.apply(to: allocated),
+			measured: insets.apply(to: measured),
+			align: align,
+			into: &events
+		)
+		if background != nil { events.append(.endDecoration(decorationID)) }
+	}
+}
+
+//TODO: Pagination - better normalization of code
+
+extension Grid: PaginationTraversable {
+    var hasPaginationGroups: Bool {
+        paginationContent.hasGroups || (paginateOnWrap != .keepWith && supportsWrapPagination) || paginationContent.cells.contains {
+            ($0 as? any PaginationTraversable)?.hasPaginationGroups == true
+        }
+    }
+
+    func collectPaginationEvents(
+        in allocated: CGRect, measured: CGSize, align: Alignment,
+        into events: inout [PaginationEvent]
+    ) {
+        RenderableEnvironment.context.pagination.collectEvents(
+            from: self, in: allocated, measured: measured, align: align, into: &events)
+    }
+}
+
 // Grid reports resolved layout geometry. The pagination coordinator owns
 // traversal order, page placement, and whether a cell is rendered.
 extension Pagination {
