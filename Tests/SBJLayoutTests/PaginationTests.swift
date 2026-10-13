@@ -24,7 +24,7 @@ struct PaginationTests {
         paging: ((Pagination) -> Void)? = nil
     ) -> Pagination {
         Pagination(
-            layout: .init(pageSize: .custom(width: 100, height: 100), margins: .zero),
+            layout: .init(pageSize: .custom(width: 100, height: 100), top: .init(0, unit: .inch), bottom: .init(0, unit: .inch), left: .init(0, unit: .inch), right: .init(0, unit: .inch)),
             pages: pages,
             paging: paging
         )
@@ -182,7 +182,7 @@ struct PaginationTests {
         let a = Box(height: 50)
         let b = Box(height: 50)
         let planner = Pagination(
-            layout: .init(pageSize: .custom(width: 100, height: 100), margins: .zero),
+            layout: .init(pageSize: .custom(width: 100, height: 100), top: .init(0, unit: .inch), bottom: .init(0, unit: .inch), left: .init(0, unit: .inch), right: .init(0, unit: .inch)),
             insets: .init(top: 20)
         )
         _ = execute(planner) {
@@ -395,7 +395,7 @@ struct DirectivePaginationPDFTests {
             PaginationGroup(sectionID: "third") { PDFBox(height: 40) }
         }
         let generator = PDFGenerator(pageLayout: .init(
-            pageSize: .custom(width: 100, height: 100), margins: .zero
+            pageSize: .custom(width: 100, height: 100), top: .init(0, unit: .inch), bottom: .init(0, unit: .inch), left: .init(0, unit: .inch), right: .init(0, unit: .inch)
         ))
         let result = generator.form(grid)
         #expect(result.document?.pageCount == 2)
@@ -411,7 +411,7 @@ struct DirectivePaginationPDFTests {
             PaginationGroup { PDFBox(height: 55) }
         }
         let generator = PDFGenerator(pageLayout: .init(
-            pageSize: .custom(width: 100, height: 100), margins: .zero
+            pageSize: .custom(width: 100, height: 100), top: .init(0, unit: .inch), bottom: .init(0, unit: .inch), left: .init(0, unit: .inch), right: .init(0, unit: .inch)
         ))
         let result = generator.form(grid, pages: 1..<2)
         #expect(result.document?.pageCount == 1)

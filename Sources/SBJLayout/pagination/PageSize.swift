@@ -1,27 +1,28 @@
 import Foundation
+import SBJFoundation
 
-public enum PageSize: Sendable, Codable, Hashable, CustomStringConvertible {
+public enum PageSize: Sendable, Codable, Hashable, CustomStringConvertible, CaseIterable {
 	public enum Category: String, Sendable, Codable, CaseIterable, CustomStringConvertible {
-		case special
+//		case special
 		case northAmerican
 		case isoA
 		case photo
-		case custom
+//		case custom
 
 		public var description: String {
 			switch self {
-			case .special: "Special"
+//			case .special: "Special"
 			case .northAmerican: "North American"
 			case .isoA: "ISO A"
 			case .photo: "Photo"
-			case .custom: "Custom"
+//			case .custom: "Custom"
 			}
 		}
 	}
 
 	// Special
-	case zero
-	case unbounded
+//	case zero
+//	case unbounded
 
 	// North American
 	case letter
@@ -50,12 +51,12 @@ public enum PageSize: Sendable, Codable, Hashable, CustomStringConvertible {
 	case photo20x30
 	case photo24x36
 
-	case custom(width: CGFloat, height: CGFloat)
+//	case custom(width: CGFloat, height: CGFloat)
 
 	public var category: Category {
 		switch self {
-		case .zero, .unbounded:
-			.special
+//		case .zero, .unbounded:
+//			.special
 		case .letter, .legal, .tabloid, .ledger, .executive:
 			.northAmerican
 		case .a0, .a1, .a2, .a3, .a4, .a5, .a6:
@@ -63,15 +64,22 @@ public enum PageSize: Sendable, Codable, Hashable, CustomStringConvertible {
 		case .photo4x6, .photo5x7, .photo8x10, .photo11x14, .photo12x18,
 			.photo16x20, .photo20x24, .photo20x30, .photo24x36:
 			.photo
-		case .custom:
-			.custom
+//		case .custom:
+//			.custom
 		}
 	}
+
+	/// Unit used for page margins. Non-ISO sizes use inches.
+	public var marginUnit: LengthUnit {
+		category == .isoA ? .millimeter : .inch
+	}
+
+	public static var allCases: [PageSize] { /*special +*/ standard }
 
 	public static let standard: [PageSize] =
 		northAmerican + isoA + photo
 
-	public static let special: [PageSize] = [.zero, .unbounded]
+	//public static let special: [PageSize] = [.zero, .unbounded]
 	public static let northAmerican: [PageSize] = [.letter, .legal, .tabloid, .ledger, .executive]
 	public static let isoA: [PageSize] = [.a0, .a1, .a2, .a3, .a4, .a5, .a6]
 	public static let photo: [PageSize] = [
@@ -81,20 +89,20 @@ public enum PageSize: Sendable, Codable, Hashable, CustomStringConvertible {
 
 	public static func sizes(in category: Category) -> [PageSize] {
 		switch category {
-		case .special: special
+//		case .special: special
 		case .northAmerican: northAmerican
 		case .isoA: isoA
 		case .photo: photo
-		case .custom: []
+//		case .custom: []
 		}
 	}
 
 	public var size: CGSize {
 		switch self {
-		case .zero:
-			.zero
-		case .unbounded:
-			.unbounded
+//		case .zero:
+//			.zero
+//		case .unbounded:
+//			.unbounded
 		case .letter:
 			CGSize(width: 612, height: 792)       // 8.5 × 11 in
 		case .legal:
@@ -137,8 +145,8 @@ public enum PageSize: Sendable, Codable, Hashable, CustomStringConvertible {
 			Self.inches(width: 20, height: 30)
 		case .photo24x36:
 			Self.inches(width: 24, height: 36)
-		case let .custom(width, height):
-			CGSize(width: width, height: height)
+//		case let .custom(width, height):
+//			CGSize(width: width, height: height)
 		}
 	}
 
@@ -161,8 +169,8 @@ public enum PageSize: Sendable, Codable, Hashable, CustomStringConvertible {
 
 	public var description: String {
 		switch self {
-		case .zero: "Zero"
-		case .unbounded: "Unbounded"
+//		case .zero: "Zero"
+//		case .unbounded: "Unbounded"
 		case .letter: "Letter"
 		case .legal: "Legal"
 		case .tabloid: "Tabloid"
@@ -184,12 +192,11 @@ public enum PageSize: Sendable, Codable, Hashable, CustomStringConvertible {
 		case .photo20x24: "20 × 24 Photo"
 		case .photo20x30: "20 × 30 Photo"
 		case .photo24x36: "24 × 36 Photo"
-		case let .custom(width, height): "Custom (\(width) × \(height))"
+//		case let .custom(width, height): "Custom (\(width) × \(height))"
 		}
 	}
 
 	private static func inches(width: CGFloat, height: CGFloat) -> CGSize {
 		CGSize(width: width * 72, height: height * 72)
 	}
-
 }

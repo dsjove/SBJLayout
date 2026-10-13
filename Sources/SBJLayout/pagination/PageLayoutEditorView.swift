@@ -11,98 +11,20 @@ import SBJFoundation
 /// button.
 public struct PageLayoutEditorCore: View {
 	@Binding private var pageLayout: PageLayout
+	@State private var editorState = SBJEditorViewState()
 
 	public init(pageLayout: Binding<PageLayout>) {
 		_pageLayout = pageLayout
 	}
 
 	public var body: some View {
-		Form {
-			Section("Page") {
-				Menu {
-					Group {
-						pageSizeMenuSection("North American", sizes: PageSize.northAmerican)
-						pageSizeMenuSection("ISO A", sizes: PageSize.isoA)
-						pageSizeMenuSection("Photo", sizes: PageSize.photo)
-					}
-					.labelStyle(.titleAndIcon)
-				} label: {
-					LabeledContent("Page Size") {
-						SBJCompactMenuLabel(text: pageLayout.pageSize.description)
-					}
-				}
-				Toggle("Landscape", isOn: $pageLayout.landscape)
-			}
-
-			Section("Margins") {
-				marginRow("Top", keyPath: \.top)
-				marginRow("Bottom", keyPath: \.bottom)
-				marginRow("Left", keyPath: \.left)
-				marginRow("Right", keyPath: \.right)
-			}
+		SBJEditorScrollView(state: $editorState) {
+			SBJEditorView(value: $pageLayout, state: $editorState)
+				.sbjEditorFormatting([.trailingAlignedFields])
+				.frame(maxWidth: .infinity, alignment: .leading)
+				.padding(.horizontal)
+				.padding(.vertical, 12)
 		}
-	}
-
-	@ViewBuilder
-	private func pageSizeMenuSection(_ title: String, sizes: [PageSize]) -> some View {
-		Section(title) {
-			ForEach(sizes, id: \.self) { size in
-				Button {
-					pageLayout.pageSize = size
-				} label: {
-					if pageLayout.pageSize == size {
-						Label(size.description, image: .system("checkmark"))
-					} else {
-						Text(size.description)
-					}
-				}
-			}
-		}
-	}
-
-	private var marginUnit: LengthUnit {
-		switch pageLayout.pageSize.category {
-		case .isoA:
-			.millimeter
-		case .northAmerican, .photo, .special, .custom:
-			.inch
-		}
-	}
-
-	private func marginRow(_ title: String, keyPath: KeyPath<Insets, CGFloat>) -> some View {
-		HStack {
-			Text(title)
-			Spacer()
-			UnitValueControl(
-				value: marginBinding(keyPath),
-				units: [marginUnit],
-				accessibilityLabel: title
-			)
-		}
-	}
-
-	private func marginBinding(_ keyPath: KeyPath<Insets, CGFloat>) -> Binding<UnitValue<LengthUnit>> {
-		Binding(
-			get: {
-				UnitValue<LengthUnit>(
-					Double(pageLayout.margins[keyPath: keyPath]),
-					unit: .point
-				)
-				.converted(to: marginUnit)
-			},
-			set: { displayedValue in
-				let points = displayedValue
-					.converted(to: .point)
-					.value
-				let value = CGFloat(max(0, points))
-				pageLayout.margins = Insets(
-					left: keyPath == \.left ? value : pageLayout.margins.left,
-					right: keyPath == \.right ? value : pageLayout.margins.right,
-					top: keyPath == \.top ? value : pageLayout.margins.top,
-					bottom: keyPath == \.bottom ? value : pageLayout.margins.bottom
-				)
-			}
-		)
 	}
 }
 
