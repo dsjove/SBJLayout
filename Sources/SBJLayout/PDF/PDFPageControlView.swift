@@ -77,6 +77,7 @@ public struct PDFPageControlView<Controller: PDFPageNavigating & PDFTextSearchin
             .submitLabel(.search)
             .onSubmit(controller.goToNextSearchMatch)
             .sbjActiveSearch(controller.isSearchActive, padding: 1)
+            .padding(.leading, 8)
 
         Text(searchMatchDescription)
             .monospacedDigit()

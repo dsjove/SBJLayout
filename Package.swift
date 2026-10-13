@@ -24,6 +24,7 @@ let package = Package(
         .target(
             name: "SBJLayout",
             dependencies: ["SBJFoundation"],
+            resources: [.process("Resources")],
             swiftSettings: [
                 .enableUpcomingFeature("ApproachableConcurrency"),
                 .defaultIsolation(nil),

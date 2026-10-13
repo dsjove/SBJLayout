@@ -29,7 +29,7 @@ public final class PDFViewController: PDFPageNavigating, PDFTextSearching {
 	}
 
 	public init(
-		minimumSearchCharacterCount: Int = 2,
+		minimumSearchCharacterCount: Int = 1,
 		searchPresentationStyle: PDFSearchPresentationStyle = PDFSearchPresentationStyle()
 	) {
 		self.minimumSearchCharacterCount = max(minimumSearchCharacterCount, 1)
