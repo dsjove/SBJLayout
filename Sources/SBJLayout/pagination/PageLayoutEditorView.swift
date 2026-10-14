@@ -11,21 +11,22 @@ import SBJFoundation
 /// button.
 public struct PageLayoutEditorCore: View {
 	@Binding private var pageLayout: PageLayout
-	@State private var editorState = SBJEditorViewState()
+    @State private var presentationModel = SBJEditorPresentationModel(
+		formattingOptions: .init(trailingAlignedFields: true)
+	)
 
 	public init(pageLayout: Binding<PageLayout>) {
 		_pageLayout = pageLayout
 	}
 
 	public var body: some View {
-		SBJEditorScrollView(state: $editorState) {
-			SBJEditorView(value: $pageLayout, state: $editorState)
-				.sbjEditorFormatting([.trailingAlignedFields])
-				.frame(maxWidth: .infinity, alignment: .leading)
-				.padding(.horizontal)
-				.padding(.vertical, 12)
-		}
-	}
+        SBJEditorScrollView(presentationModel: presentationModel) {
+            SBJEditorView(value: $pageLayout, presentationModel: presentationModel)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal)
+                .padding(.vertical, 12)
+        }
+    }
 }
 
 /// Compatibility presentation wrapper around ``PageLayoutEditorCore``.
