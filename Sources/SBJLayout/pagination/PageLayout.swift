@@ -1,5 +1,6 @@
 import Foundation
 import SBJFoundation
+import SBJLocalization
 
 @SBJStructure
 public struct PageLayout: Codable, Equatable, Sendable {
@@ -33,10 +34,7 @@ public struct PageLayout: Codable, Equatable, Sendable {
 	) {
 		self.pageSize = pageSize
 		self.landscape = landscape
-		let defaultMargin = UnitValue<LengthUnit>(
-			pageSize.marginUnit == .millimeter ? 6.35 : 0.25,
-			unit: pageSize.marginUnit
-		)
+		let defaultMargin = pageSize.defaultMargin
 		self.top = top ?? defaultMargin
 		self.bottom = bottom ?? defaultMargin
 		self.left = left ?? defaultMargin

@@ -1,6 +1,7 @@
 import CoreGraphics
 import UIKit
 import SBJFoundation
+import SBJLocalization
 
 public struct JCSText: Renderable {
 	public let text: String?

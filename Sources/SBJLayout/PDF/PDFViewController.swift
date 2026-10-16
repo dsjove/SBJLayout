@@ -1,6 +1,7 @@
 #if !os(watchOS)
 import Observation
 import PDFKit
+import SBJLocalization
 
 /// SwiftUI-facing controller for the PDFKit view hosted by ``StablePDFView``.
 ///
@@ -77,7 +78,8 @@ public final class PDFViewController: PDFPageNavigating, PDFTextSearching {
 
 	public var searchQuery: String = "" {
 		didSet {
-			guard searchQuery != oldValue else { return }
+			// Query equivalence is for user-entered text; PDFKit still performs substring search.
+			guard !searchQuery.isEquivalent(to: oldValue) else { return }
 			rebuildSearchResults(animateFirstMatch: true)
 		}
 	}
@@ -149,7 +151,7 @@ public final class PDFViewController: PDFPageNavigating, PDFTextSearching {
 			return
 		}
 
-		searchMatches = document.findString(searchQuery, withOptions: [.caseInsensitive]).compactMap { selection in
+		searchMatches = document.findString(searchQuery.trimmingCharacters(in: .whitespacesAndNewlines), withOptions: [.caseInsensitive]).compactMap { selection in
 			makeSearchMatch(from: selection, in: document)
 		}
 		guard !searchMatches.isEmpty else {

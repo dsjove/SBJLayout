@@ -18,12 +18,13 @@ let package = Package(
         ),
     ],
     dependencies: [
+        .package(path: "../SBJFoundation/Packages/SBJLocalization"),
         .package(path: "../SBJFoundation"),
     ],
     targets: [
         .target(
             name: "SBJLayout",
-            dependencies: ["SBJFoundation"],
+            dependencies: ["SBJFoundation", .product(name: "SBJLocalization", package: "SBJLocalization")],
             resources: [.process("Resources")],
             swiftSettings: [
                 .enableUpcomingFeature("ApproachableConcurrency"),
@@ -32,7 +33,7 @@ let package = Package(
         ),
         .testTarget(
             name: "SBJLayoutTests",
-            dependencies: ["SBJLayout"],
+            dependencies: ["SBJLayout", .product(name: "SBJLocalization", package: "SBJLocalization")],
             swiftSettings: [
                 .enableUpcomingFeature("ApproachableConcurrency"),
                 .defaultIsolation(nil),

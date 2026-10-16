@@ -74,6 +74,18 @@ public enum PageSize: Sendable, Codable, Hashable, CustomStringConvertible, Case
 		category == .isoA ? .millimeter : .inch
 	}
 
+	/// Nominal clearance for ordinary physical printers, not a page-layout convention.
+	/// Actual nonprintable areas depend on the printer, media, and print mode;
+	/// callers can explicitly override these margins for their printer or borderless output.
+	public var defaultMargin: UnitValue<LengthUnit> {
+		switch category {
+		case .isoA:
+			UnitValue<LengthUnit>(6, unit: .millimeter)
+		case .northAmerican, .photo:
+			UnitValue<LengthUnit>(0.25, unit: .inch)
+		}
+	}
+
 	public static var allCases: [PageSize] { /*special +*/ standard }
 
 	public static let standard: [PageSize] =

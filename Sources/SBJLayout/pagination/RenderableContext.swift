@@ -1,5 +1,6 @@
 import Foundation
 import SBJFoundation
+import SBJLocalization
 
 public struct PageContext: Equatable, Sendable {
 	/// Zero-based source page index in the complete paginated document.

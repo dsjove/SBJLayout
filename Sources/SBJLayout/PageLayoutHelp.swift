@@ -1,8 +1,8 @@
 import Foundation
 import SBJFoundation
 
-public extension SBJAssetReference {
-    static var pageLayoutCore: SBJAssetReference {
+public extension SBJBundledContentReference {
+    static var pageLayoutCore: SBJBundledContentReference {
         .help("Page Layout Core", resourceName: "PageLayoutCore", bundle: .module)
     }
 }

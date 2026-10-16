@@ -2,6 +2,7 @@
 import Foundation
 import SBJFoundation
 import PDFKit
+import SBJLocalization
 
 public struct PDFRenderResult {
 	public let data: Data

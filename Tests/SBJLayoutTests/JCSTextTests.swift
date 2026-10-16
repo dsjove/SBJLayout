@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 import UIKit
+import SBJLocalization
 @testable import SBJLayout
 
 @Suite("JCSText")

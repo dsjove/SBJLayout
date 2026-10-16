@@ -1,5 +1,6 @@
 import CoreGraphics
 import SBJFoundation
+import SBJLocalization
 
 /// A draw-only page/layout element.
 ///
