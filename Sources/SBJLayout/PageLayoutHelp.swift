@@ -1,5 +1,5 @@
 import Foundation
-import SBJFoundation
+import SBJFileResources
 
 public extension SBJBundledContentReference {
     static var pageLayoutCore: SBJBundledContentReference {
