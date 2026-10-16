@@ -14,9 +14,13 @@ public struct PageLayout: Codable, Equatable, Sendable {
 		}
 	}
 	public var landscape: Bool
+	@SBJUnitValue(editor: .fixedUnit)
 	public var left: UnitValue<LengthUnit>
+	@SBJUnitValue(editor: .fixedUnit)
 	public var right: UnitValue<LengthUnit>
+	@SBJUnitValue(editor: .fixedUnit)
 	public var top: UnitValue<LengthUnit>
+	@SBJUnitValue(editor: .fixedUnit)
 	public var bottom: UnitValue<LengthUnit>
 
 	public init(
