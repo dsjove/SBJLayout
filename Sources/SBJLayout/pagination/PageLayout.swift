@@ -15,13 +15,13 @@ public struct PageLayout: Codable, Equatable, Sendable {
 		}
 	}
 	public var landscape: Bool
-	@SBJUnitValue(editor: .fixedUnit)
+	@SBJUnitValue(immutableUnit: true)
 	public var left: UnitValue<LengthUnit>
-	@SBJUnitValue(editor: .fixedUnit)
+	@SBJUnitValue(immutableUnit: true)
 	public var right: UnitValue<LengthUnit>
-	@SBJUnitValue(editor: .fixedUnit)
+	@SBJUnitValue(immutableUnit: true)
 	public var top: UnitValue<LengthUnit>
-	@SBJUnitValue(editor: .fixedUnit)
+	@SBJUnitValue(immutableUnit: true)
 	public var bottom: UnitValue<LengthUnit>
 
 	public init(
@@ -59,21 +59,14 @@ public struct PageLayout: Codable, Equatable, Sendable {
 		)
 	}
 
-	public static func propertyInfo<Value>(for keyPath: KeyPath<Self, Value>) -> SBJPropertyInfo? {
-		switch keyPath as AnyKeyPath {
-		case \Self.pageSize:
-			SBJPropertyInfo(summary: "Paper size used for PDF layout.", details: "The preferred unit for margins is inches, or millimeters for ISO A paper sizes. Changing paper-size families converts existing measurements without altering physical distances.")
-		case \Self.landscape:
-			SBJPropertyInfo(summary: "Use landscape page orientation rather than portrait.", details: "")
-		case \Self.top:
-			SBJPropertyInfo(summary: "Top page margin, including its unit.", details: "")
-		case \Self.bottom:
-			SBJPropertyInfo(summary: "Bottom page margin, including its unit.", details: "")
-		case \Self.left:
-			SBJPropertyInfo(summary: "Left page margin, including its unit.", details: "")
-		case \Self.right:
-			SBJPropertyInfo(summary: "Right page margin, including its unit.", details: "")
-		default: nil
-		}
-	}
+    // Statically discovered by @SBJStructure; no key-path switch required.
+    public static let pageSizeInfo = SBJPropertyInfo(
+        summary: "Paper size used for PDF layout.",
+        details: "The preferred unit for margins is inches, or millimeters for ISO A paper sizes. Changing paper-size families converts existing measurements without altering physical distances."
+    )
+    public static let landscapeInfo = SBJPropertyInfo(summary: "Use landscape page orientation rather than portrait.")
+    public static let topInfo = SBJPropertyInfo(summary: "Top page margin, including its unit.")
+    public static let bottomInfo = SBJPropertyInfo(summary: "Bottom page margin, including its unit.")
+    public static let leftInfo = SBJPropertyInfo(summary: "Left page margin, including its unit.")
+    public static let rightInfo = SBJPropertyInfo(summary: "Right page margin, including its unit.")
 }

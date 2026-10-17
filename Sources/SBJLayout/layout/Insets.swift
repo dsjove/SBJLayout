@@ -1,5 +1,6 @@
 import CoreGraphics
 import SBJFoundation
+import SBJLocalization
 
 @SBJStructure
 public struct Insets: Sendable, Codable, Equatable, CustomStringConvertible {
